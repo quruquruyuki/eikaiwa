@@ -27,7 +27,7 @@
   main { padding:16px; padding-bottom:calc(env(safe-area-inset-bottom) + 90px); max-width:720px; margin:0 auto; }
   nav.tabs { position:fixed; left:0; right:0; bottom:0; background:rgba(255,255,255,.97); backdrop-filter:blur(8px); border-top:1px solid var(--line);
     display:flex; padding:6px 4px calc(env(safe-area-inset-bottom) + 6px); z-index:6; }
-  nav.tabs button { flex:1; border:none; padding:4px 0; font-size:11px; color:var(--sub); display:flex; flex-direction:column; align-items:center; gap:2px; }
+  nav.tabs button { flex:1; border:none; padding:4px 0; font-size:10px; color:var(--sub); display:flex; flex-direction:column; align-items:center; gap:2px; }
   nav.tabs button b { font-size:20px; font-weight:400; line-height:1.1; }
   nav.tabs button.on { color:var(--fg); font-weight:600; }
   .hint { color:var(--sub); font-size:13px; line-height:1.6; }
@@ -48,6 +48,17 @@
   .seg2 button { border:none; border-radius:7px; padding:6px 14px; color:var(--sub); font-size:14px; }
   .seg2 button.on { background:#fff; color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.12); font-weight:600; }
   .seg2.lv { display:flex; } .seg2.lv button { flex:1; padding:7px 4px; }
+  .task { display:flex; gap:12px; align-items:center; padding:14px 12px; border:1px solid var(--line); border-radius:12px; margin-top:10px; background:#fff; width:100%; text-align:left; }
+  .task .n { width:28px; height:28px; border-radius:50%; background:var(--soft); display:flex; align-items:center; justify-content:center; font-size:14px; flex:none; }
+  .task.done { background:var(--soft); } .task.done .n { background:var(--green); color:#fff; }
+  .task .t { flex:1; } .task .t b { display:block; } .task .t small { color:var(--sub); font-size:13px; }
+  .stage { font-size:13px; color:var(--sub); margin:18px 0 4px; font-weight:600; }
+  .wk { display:flex; gap:10px; padding:10px 4px; border-bottom:1px solid var(--line); align-items:center; }
+  .wk.cur { background:var(--bluebg); border-radius:8px; }
+  .wk .no { width:44px; color:var(--sub); font-size:13px; flex:none; }
+  .qopt { display:flex; gap:10px; align-items:center; width:100%; text-align:left; padding:12px; margin-top:8px; border-radius:10px; }
+  .qopt.ok { background:var(--okbg); border-color:#9ccfab; } .qopt.ng { background:var(--ngbg); border-color:#f0b4ab; }
+  .backbar { background:var(--bluebg); border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
   .tag { font-size:12px; padding:2px 8px; border-radius:4px; background:var(--soft); color:var(--sub); white-space:nowrap; }
   .tag.ok { background:var(--okbg); color:#2b593f; } .tag.ng { background:var(--ngbg); color:#5d1715; } .tag.b { background:var(--bluebg); color:#1f5aa6; }
 
@@ -126,6 +137,16 @@
       <div class="row" style="margin-top:16px"><button id="lBtn" class="primary grow">ログイン</button></div>
       <p id="lMsg" class="hint" style="color:var(--red)"></p>
     </form>
+  </main>
+</section>
+
+<!-- 今日（カリキュラム） -->
+<section id="v-today" class="hidden">
+  <header><h1>今日のレッスン</h1><button class="sm" id="cOpenList">カリキュラム</button><button class="icon" data-settings>⚙︎</button></header>
+  <main>
+    <div id="todayBox"></div>
+    <div id="pointBox" class="hidden"></div>
+    <div id="quizBox" class="hidden"></div>
   </main>
 </section>
 
@@ -262,7 +283,8 @@
 </section>
 
 <nav class="tabs hidden" id="tabs">
-  <button data-v="talk" class="on"><b>💬</b>会話</button>
+  <button data-v="today" class="on"><b>📅</b>今日</button>
+  <button data-v="talk"><b>💬</b>会話</button>
   <button data-v="dict"><b>✍︎</b>聞き取り</button>
   <button data-v="shad"><b>🗣</b>シャドー</button>
   <button data-v="phr"><b>📒</b>フレーズ</button>
@@ -298,6 +320,9 @@
   <label>メモ（使いどころなど）</label><input id="aNote">
   <div class="row" style="margin-top:16px"><span class="grow"></span><button id="aClose">閉じる</button><button id="aSave" class="primary">追加</button></div>
 </div></dialog>
+
+<!-- カリキュラム一覧 -->
+<dialog id="courseDlg"><div class="dlg" id="courseBody"></div></dialog>
 
 <!-- 記録の詳細 -->
 <dialog id="logDlg"><div class="dlg" id="logBody"></div></dialog>
@@ -468,8 +493,8 @@ function compare(ref, ans) {
 }
 
 // ===== 画面切り替え =====
-const VIEWS = ["login","talk","dict","shad","phr","log"];
-let curView = "talk";
+const VIEWS = ["login","today","talk","dict","shad","phr","log"];
+let curView = "today";
 function show(v) {
   stopAudio();
   for (const x of VIEWS) $("v-"+x).classList.toggle("hidden", x !== v);
@@ -477,7 +502,7 @@ function show(v) {
   $("talkDock").classList.toggle("hidden", !(v === "talk" && talk.active));
   document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
   if (v !== "login") curView = v;
-  if (v === "phr") renderPhrases(); if (v === "log") renderLog();
+  if (v === "phr" && !courseTask) renderPhrases(); if (v === "log") renderLog(); if (v === "today") renderToday();
   if (v === "dict" && !dict.mat) renderPicker("dictPick", startDict);
   if (v === "shad" && !shad.mat) renderPicker("shadPick", startShad);
   window.scrollTo(0, 0);
@@ -642,7 +667,7 @@ function addBubble(m) {
 async function aiTurn() {
   talkBusy(true, "考えています…");
   try {
-    const d = await api("chat", { scene:talk.sceneText, level:S.level, history:talk.history.filter(m=>m.role!=="hint") });
+    const d = await api("chat", { scene:talk.sceneText, level:talk.level, history:talk.history.filter(m=>m.role!=="hint") });
     const m = { role:"ai", text:d.en, ja:d.ja }; talk.history.push(m); addBubble(m);
     talkBusy(false, "マイクを押して話してください");
     if (S.auto) { setTalkStatus("読み上げ中…（マイクを押すと止まります）"); speak(m.text).finally(() => !talk.busy && !recState && setTalkStatus("マイクを押して話してください")); }
@@ -650,13 +675,16 @@ async function aiTurn() {
 }
 $("talkStart").onclick = () => {
   if (sceneId === "custom" && !$("sceneCustom").value.trim()) return toast("場面を書いてください");
-  const pk = pickScene();
-  Object.assign(talk, { active:true, history:[], startedAt:Date.now(), review:null, sceneText:pk.text, scene:pk.name });
+  courseTask = null; startTalkWith(pickScene());
+};
+function startTalkWith(pk) {
+  Object.assign(talk, { level:pk.level || S.level, active:true, history:[], startedAt:Date.now(), review:null, sceneText:pk.text, scene:pk.name });
   $("chatLog").innerHTML = ""; $("talkTitle").textContent = talk.scene;
   $("talkSetup").classList.add("hidden"); $("talkReview").classList.add("hidden"); $("talkRoom").classList.remove("hidden");
   $("talkDock").classList.remove("hidden"); $("talkEnd").classList.remove("hidden");
+  if (pk.mission) { const d = document.createElement("div"); d.className = "bub hintb"; d.textContent = "🎯 " + pk.mission; $("chatLog").appendChild(d); }
   aiTurn();
-};
+}
 async function sendMine(text) {
   text = text.trim(); if (!text) return;
   const m = { role:"me", text }; talk.history.push(m); addBubble(m); await aiTurn();
@@ -687,7 +715,7 @@ $("hintBtn").onclick = async () => {
   if (want === null) return;
   talkBusy(true, "ヒントを考えています…");
   try {
-    const d = await api("hint", { scene:talk.sceneText, level:S.level, history:talk.history.filter(m=>m.role!=="hint"), want });
+    const d = await api("hint", { scene:talk.sceneText, level:talk.level, history:talk.history.filter(m=>m.role!=="hint"), want });
     const m = { role:"hint", ja:d.ja, examples:d.examples||[] }; talk.history.push(m); addBubble(m);
   } catch (e) { toast(e.message, 4000); }
   talkBusy(false, "マイクを押して話してください");
@@ -700,12 +728,13 @@ $("talkEnd").onclick = async () => {
   talkBusy(true, "添削しています…"); $("talkEnd").disabled = true;
   try {
     const hist = talk.history.filter(m=>m.role!=="hint");
-    const d = await api("review", { scene:talk.sceneText, level:S.level, history:hist });
+    const d = await api("review", { scene:talk.sceneText, level:talk.level, history:hist });
     talk.review = d; talk.active = false;
     const minutes = Math.max(1, Math.round((Date.now()-talk.startedAt)/60000));
     await sb.from("ek_sessions").insert({ mode:"conversation", scene:talk.scene, minutes, score:d.score, data:{ history:hist, review:d } });
     $("talkDock").classList.add("hidden"); $("talkEnd").classList.add("hidden"); $("talkRoom").classList.add("hidden");
     renderReview($("talkReview"), d, hist, talk.scene, true); $("talkReview").classList.remove("hidden"); window.scrollTo(0,0);
+    courseFinished("talk", $("talkReview"));
   } catch (e) { toast(e.message, 4000); }
   talkBusy(false); $("talkEnd").disabled = false;
 };
@@ -812,7 +841,8 @@ function paintCard() {
   const p = rv.list[rv.i];
   if (!p) {
     $("phrCard").innerHTML = `<div class="flash"><div class="big">${rv.ok}/${rv.list.length}</div><p>復習おわり！</p><button class="primary" id="rvBack">もどる</button></div>`;
-    $("rvBack").onclick = renderPhrases;
+    $("rvBack").onclick = () => { if (courseTask === "phr") { courseTask = null; show("today"); } else renderPhrases(); };
+    courseFinished("phr", $("phrCard"));
     sb.from("ek_sessions").insert({ mode:"phrases", scene:"フレーズ帳", minutes:Math.max(1,Math.round((Date.now()-rv.at)/60000)), score:Math.round(rv.ok/rv.list.length*100), data:{ count:rv.list.length, ok:rv.ok } });
     return;
   }
@@ -832,7 +862,7 @@ function paintCard() {
     await sb.from("ek_phrases").update({ box, next_review:next }).eq("id", p.id);
   };
   $("cOk").onclick = () => judge(true); $("cNg").onclick = () => judge(false);
-  $("cQuit").onclick = renderPhrases;
+  $("cQuit").onclick = () => { if (courseTask === "phr") { courseTask = null; show("today"); } else renderPhrases(); };
 }
 
 // ===== 教材えらび（ディクテーション・シャドーイング共通） =====
@@ -873,6 +903,7 @@ function renderPicker(boxId, onStart) {
     } catch (e) { toast(e.message, 4000); }
     btn.disabled = false; btn.textContent = label;
   };
+  const _onStart = onStart; onStart = m => { courseTask = null; _onStart(m); };
   $(`${boxId}-gen`).onclick = () => { if (sceneId==="custom" && !$("sceneCustom").value.trim()) return toast("「自分で決める」は会話タブで場面を書いてください", 4000); gen(""); };
   $(`${boxId}-use`).onclick = () => { const t=$(`${boxId}-txt`).value.trim(); if (!t) return toast("英文を貼りつけてください"); gen(t); };
   box.querySelectorAll("[data-i]").forEach(b => b.onclick = () => onStart(rec[+b.dataset.i]));
@@ -928,6 +959,7 @@ async function finishDict() {
   $("ddAgain").onclick = () => startDict(dict.mat);
   $("ddShad").onclick = () => { const m = dict.mat; show("shad"); startShad(m); };
   $("ddNew").onclick = () => { dict.mat = null; $("dictDone").classList.add("hidden"); $("dictPick").classList.remove("hidden"); renderPicker("dictPick", startDict); };
+  courseFinished("dict", $("dictDone"));
   await sb.from("ek_sessions").insert({ mode:"dictation", scene:dict.mat.title, minutes:Math.max(1,Math.round((Date.now()-dict.at)/60000)), score:avg, data:{ results:r } });
 }
 $("dictQuit").onclick = () => {
@@ -1018,6 +1050,7 @@ async function finishShad() {
     <div class="row" style="margin-top:16px"><button class="grow" id="sdAgain">もう一度</button><button class="primary grow" id="sdNew">ほかの教材</button></div>`;
   $("sdAgain").onclick = () => startShad(shad.mat);
   $("sdNew").onclick = () => { shad.mat = null; $("shadDone").classList.add("hidden"); $("shadPick").classList.remove("hidden"); renderPicker("shadPick", startShad); };
+  courseFinished("shad", $("shadDone"));
   if (r.length) await sb.from("ek_sessions").insert({ mode:"shadowing", scene:shad.mat.title, minutes:Math.max(1,Math.round((Date.now()-shad.at)/60000)), score:avg, data:{ results:r } });
 }
 $("shadQuit").onclick = async () => {
@@ -1027,7 +1060,7 @@ $("shadQuit").onclick = async () => {
 };
 
 // ===== 記録 =====
-const MODE_JA = { conversation:"💬 会話", dictation:"✍︎ 聞き取り", shadowing:"🗣 シャドー", phrases:"📒 復習" };
+const MODE_JA = { conversation:"💬 会話", dictation:"✍︎ 聞き取り", shadowing:"🗣 シャドー", phrases:"📒 復習", quiz:"🎧 クイズ", lesson:"📅 レッスン" };
 async function renderLog() {
   const since = addDays(today(), -7*12 - 7);
   const { data, error } = await sb.from("ek_sessions").select("id,created_at,mode,scene,minutes,score").gte("created_at", since + "T00:00:00").order("created_at", { ascending:false });
@@ -1070,16 +1103,245 @@ async function openLog(id) {
   $("logDlg").showModal();
 }
 
+// ===== カリキュラム（今日のレッスン） =====
+const GOAL = "海外旅行・仕事（学会での会話、医師への説明、英語論文）・日常会話・TOEIC";
+const STAGES = {
+  1: "ステージ1　入門：中学英語のやり直し＋旅行の基本",
+  2: "ステージ2　初級：旅行で困らない・仕事の基本",
+  3: "ステージ3　初中級：仕事で使う・TOEIC",
+};
+// t=テーマ g=文法・表現 sc=場面 lv=レベル
+const COURSE = [
+  { st:1, t:"自己紹介", g:"be動詞（I am / You are / Are you ~?）", sc:"旅先のゲストハウスで初めて会った人とあいさつ", lv:"a1" },
+  { st:1, t:"好きなもの・趣味", g:"一般動詞（I like ~ / Do you ~? / I don't ~）", sc:"旅行先で知り合った人と趣味の話", lv:"a1" },
+  { st:1, t:"家族と仕事", g:"三人称単数のs（He works / She has / Does he ~?）", sc:"海外の友人に家族や同僚を紹介する", lv:"a1" },
+  { st:1, t:"カフェ・レストラン", g:"注文の言い方（I'd like ~ / Can I have ~? / Could I get ~?）", sc:"海外のカフェとレストランで注文する", lv:"a1" },
+  { st:1, t:"買い物", g:"How much / this・that / 数字と値段 / 色やサイズ", sc:"海外のお店でお土産や服を買う", lv:"a1" },
+  { st:1, t:"道をたずねる", g:"Where is ~? / 場所の前置詞（next to, on the left, across from）", sc:"旅行先の街で道をたずねる・教える", lv:"a1" },
+  { st:1, t:"週末の話", g:"過去形（went / ate / was / Did you ~?）", sc:"月曜日に同僚と週末の話をする", lv:"a2" },
+  { st:1, t:"旅行の予定", g:"未来の言い方（will / be going to）", sc:"これからの旅行の予定を話す", lv:"a2" },
+  { st:2, t:"空港と機内", g:"ていねいなお願い（Could you ~? / Can I ~?）", sc:"空港のチェックインと機内でのやりとり", lv:"a2" },
+  { st:2, t:"ホテル", g:"There is / There are ／ 問題を伝える（doesn't work）", sc:"ホテルのチェックインと部屋のトラブル", lv:"a2" },
+  { st:2, t:"体調・薬局", g:"症状の言い方（I have a ~ / My ~ hurts）と should", sc:"旅先の薬局で症状を伝えて薬を買う", lv:"a2" },
+  { st:2, t:"経験を話す", g:"現在完了の経験（Have you ever ~? / I've been to ~）", sc:"海外の人と旅行や食べ物の経験を話す", lv:"a2" },
+  { st:2, t:"仕事を紹介する", g:"不定詞・動名詞（My job is to ~ / I enjoy ~ing）", sc:"交流会で自分の仕事（漢方メーカーのMR）を説明する", lv:"a2p" },
+  { st:2, t:"予定を調整する", g:"日時の前置詞 at / on / in ／ How about ~? / Let's ~", sc:"海外の同僚と打ち合わせの日時を決める", lv:"a2p" },
+  { st:2, t:"比べる・選ぶ", g:"比較級・最上級（bigger / the best / more ~ than）", sc:"ホテルやツアーを比べて選ぶ", lv:"a2p" },
+  { st:2, t:"電話・オンライン会議", g:"電話の表現と聞き返し（Could you say that again? / Let me check）", sc:"電話やオンライン会議でのやりとり", lv:"a2p" },
+  { st:3, t:"学会で雑談", g:"話を広げる質問（What do you think of ~? / How did you get into ~?）", sc:"国際学会のコーヒーブレイクで海外の医師と雑談", lv:"a2p" },
+  { st:3, t:"漢方を説明する", g:"受け身（is used for / is made from / is prescribed）", sc:"漢方を知らない海外の医師に、漢方とは何かを説明する", lv:"b1" },
+  { st:3, t:"効果とエビデンス", g:"数字・割合・結果の言い方（showed / improved / reduced by ~%）", sc:"医師に臨床試験の結果を説明する", lv:"b1" },
+  { st:3, t:"副作用・注意点", g:"may / might ／ if の条件文", sc:"医師から副作用や飲み合わせについて質問される", lv:"b1" },
+  { st:3, t:"英語論文を読む", g:"関係代名詞（patients who ~ / a study that ~）", sc:"英語論文の要旨（Abstract）を読んで内容を話す", lv:"b1" },
+  { st:3, t:"意見を言う", g:"I think ~ / I agree, but ~ / In my opinion", sc:"会議や雑談で意見を言う・賛成反対を伝える", lv:"b1" },
+  { st:3, t:"提案とお願い", g:"Would you mind ~? / I was wondering if ~", sc:"医師に面談や資料送付をていねいにお願いする", lv:"b1" },
+  { st:3, t:"総まとめ：発表後の質疑", g:"つなぎの言葉（because / although / so / for example）", sc:"学会発表のあとで質問に答える", lv:"b1" },
+];
+const TASKS = {
+  point: { label:"今日のポイント", min:3, icon:"💡" },
+  dict:  { label:"聞き取り（ディクテーション）", min:5, icon:"✍︎" },
+  shad:  { label:"シャドーイング", min:5, icon:"🗣" },
+  quiz:  { label:"TOEIC形式クイズ", min:4, icon:"🎧" },
+  talk:  { label:"会話練習", min:5, icon:"💬" },
+  phr:   { label:"フレーズ帳の復習", min:3, icon:"📒" },
+};
+const DAY_TASKS = { 1:["point","dict","shad","talk"], 2:["point","dict","shad","talk"], 3:["point","dict","quiz","talk"], 4:["point","shad","quiz","talk"], 5:["point","quiz","shad","talk"] };
+let course = null, courseTask = null, lessonLoading = false;
+
+async function loadCourse() {
+  const { data, error } = await sb.from("ek_course").select("*").maybeSingle();
+  if (error) { toast(error.message); return null; }
+  if (data) return (course = data);
+  const { data:ins, error:e2 } = await sb.from("ek_course").insert({}).select().single();
+  if (e2) { toast(e2.message); return null; }
+  return (course = ins);
+}
+async function saveCourse(patch) {
+  Object.assign(course, patch);
+  const { error } = await sb.from("ek_course").update({ ...patch, updated_at:new Date().toISOString() }).eq("user_id", course.user_id);
+  if (error) toast("保存できませんでした：" + error.message);
+}
+const weekOf = () => COURSE[Math.min(course.week, COURSE.length) - 1];
+async function markDone(kind) {
+  if (!course || course.done?.[kind]) return;
+  await saveCourse({ done:{ ...(course.done||{}), [kind]:true } });
+}
+// 練習画面で終わったとき、今日のメニューから来ていれば「完了」にして戻るボタンを出す
+async function courseFinished(kind, box) {
+  if (courseTask !== kind) return;
+  courseTask = null; await markDone(kind);
+  const bar = document.createElement("div"); bar.className = "backbar";
+  bar.innerHTML = `<span>✅ ${TASKS[kind].label} 完了</span><span class="grow"></span><button class="primary sm">今日のメニューへ</button>`;
+  bar.querySelector("button").onclick = () => show("today");
+  box.prepend(bar);
+}
+
+async function renderToday() {
+  $("pointBox").classList.add("hidden"); $("quizBox").classList.add("hidden"); $("todayBox").classList.remove("hidden");
+  const box = $("todayBox");
+  if (!course) { box.innerHTML = `<p class="hint">読み込み中…</p>`; if (!(await loadCourse())) return; }
+  if (course.week > COURSE.length) {
+    box.innerHTML = `<div class="flash"><div class="big">🎉</div><p>全${COURSE.length}週を修了しました！</p><p class="hint">カリキュラムから好きな週を選んで、もう一周できます。</p></div>`;
+    return;
+  }
+  const w = weekOf(), key = `${course.week}-${course.day}`;
+  const prog = ((course.week-1)*5 + (course.day-1)) / (COURSE.length*5) * 100;
+  const lvName = LEVELS.find(l=>l.id===w.lv)?.label || "";
+  const first = course.week === 1 && course.day === 1 && !(course.log||[]).length && !Object.keys(course.done||{}).length;
+  box.innerHTML = `
+    ${first ? `<div class="card" style="background:var(--bluebg)"><b>ようこそ！</b><div class="hint" style="color:var(--fg);margin-top:4px">中学英語のやり直しから、旅行・仕事・TOEICまで全${COURSE.length}週のカリキュラムです。1日15〜20分、上から順にこなすだけ。1週間＝5日分なので、休んでも続きから始められます。易しすぎるときは右上の「カリキュラム」から週を飛ばせます。</div></div>` : ""}
+    <div class="hint" style="margin-top:6px">${esc(STAGES[w.st])}</div>
+    <h2 style="margin-top:4px">Week ${course.week}「${esc(w.t)}」　<span class="tag b">Day ${course.day} / 5</span></h2>
+    <div class="hint">📘 ${esc(w.g)}<br>🎬 ${esc(w.sc)}<br>📶 レベル：${lvName}</div>
+    <div class="progress"><div style="width:${prog}%"></div></div>
+    <div class="hint" style="text-align:right">全体の ${Math.round(prog)}%</div>
+    <div id="taskList"></div>`;
+  if (course.lesson_key !== key || !course.lesson) {
+    $("taskList").innerHTML = `<div class="card" style="text-align:center"><p>今日のレッスンを用意しています…</p><p class="hint">AIが今日の例文・練習文・会話・クイズを作っています（20秒ほど）</p></div>`;
+    if (lessonLoading) return; lessonLoading = true;
+    try {
+      const d = await api("lesson", { title:w.t, grammar:w.g, scene:w.sc, level:w.lv, day:course.day, goal:GOAL });
+      await saveCourse({ lesson:d, lesson_key:key, done:{} });
+    } catch (e) { $("taskList").innerHTML = `<div class="card"><p>レッスンを作れませんでした：${esc(e.message)}</p><button id="lsRetry" class="primary">もう一度</button></div>`; $("lsRetry").onclick = renderToday; lessonLoading = false; return; }
+    lessonLoading = false;
+  }
+  paintTasks();
+}
+async function paintTasks() {
+  const list = DAY_TASKS[course.day] || DAY_TASKS[1], done = course.done || {};
+  const { count:due } = await sb.from("ek_phrases").select("id", { count:"exact", head:true }).lte("next_review", today());
+  const total = list.reduce((a,k)=>a+TASKS[k].min,0);
+  const all = list.every(k => done[k]);
+  let html = `<div class="hint" style="margin-top:10px">今日のメニュー（約${total}分）</div>`;
+  list.forEach((k,i) => { const t = TASKS[k];
+    html += `<button class="task ${done[k]?"done":""}" data-k="${k}"><span class="n">${done[k]?"✓":i+1}</span><span class="t"><b>${t.icon} ${t.label}</b><small>${taskNote(k)}・約${t.min}分</small></span><span>›</span></button>`; });
+  if (due) html += `<button class="task ${done.phr?"done":""}" data-k="phr"><span class="n">${done.phr?"✓":"＋"}</span><span class="t"><b>📒 フレーズ帳の復習（おまけ）</b><small>今日の復習 ${due}件・約3分</small></span><span>›</span></button>`;
+  if (all) html += `<div class="card" style="text-align:center;margin-top:16px"><div class="big">🎉</div><p><b>今日のメニュー完了！</b></p>
+      <p class="hint">${course.day < 5 ? "続けて次の日に進むこともできます。" : "今週のまとめまで終わりました。次は新しい週です。"}</p>
+      <button class="primary" id="nextDay" style="padding:12px 24px">${course.day < 5 ? `Day ${course.day+1} へ進む` : `Week ${course.week+1} へ進む`}</button></div>`;
+  $("taskList").innerHTML = html;
+  $("taskList").querySelectorAll("[data-k]").forEach(b => b.onclick = () => runTask(b.dataset.k));
+  if ($("nextDay")) $("nextDay").onclick = async () => {
+    const log = [...(course.log||[]), { date:today(), week:course.week, day:course.day }].slice(-300);
+    const nx = course.day < 5 ? { week:course.week, day:course.day+1 } : { week:course.week+1, day:1 };
+    await saveCourse({ ...nx, done:{}, lesson:null, lesson_key:null, log });
+    await sb.from("ek_sessions").insert({ mode:"lesson", scene:`Week${log.at(-1).week} Day${log.at(-1).day}「${COURSE[log.at(-1).week-1].t}」`, minutes:total, data:{} });
+    window.scrollTo(0,0); renderToday();
+  };
+}
+function taskNote(k) {
+  const L = course.lesson || {};
+  return { point: L.point_title || "今日の文法・表現", dict: `練習文${(L.sentences||[]).length}文を書き取る`, shad: `練習文${(L.sentences||[]).length}文をまねして言う`,
+    quiz: `${(L.quiz||[]).length}問・聞いて正しい応答を選ぶ`, talk: L.roleplay_ja || "ロールプレイ", phr:"" }[k] || "";
+}
+function runTask(k) {
+  const L = course.lesson, w = weekOf(), title = `Week${course.week} Day${course.day}「${w.t}」`;
+  if (k === "point") return showPoint();
+  if (k === "quiz") return startQuiz();
+  courseTask = k;
+  if (k === "dict") { show("dict"); startDict({ title, sentences:L.sentences }); }
+  if (k === "shad") { show("shad"); startShad({ title, sentences:L.sentences }); }
+  if (k === "talk") { show("talk"); startTalkWith({ name:title, text:L.roleplay_en, level:w.lv, mission:L.roleplay_ja }); }
+  if (k === "phr") { show("phr"); loadPhrases().then(() => $("phrReview").onclick()); }
+}
+// 今日のポイント
+function showPoint() {
+  const L = course.lesson;
+  $("todayBox").classList.add("hidden"); $("pointBox").classList.remove("hidden"); window.scrollTo(0,0);
+  $("pointBox").innerHTML = `<div class="row"><button class="sm" id="ptBack">‹ もどる</button></div>
+    <h2>💡 ${esc(L.point_title)}</h2>
+    <div class="card" style="line-height:1.8">${esc(L.point_ja).replace(/\n/g,"<br>")}</div>
+    <h2>例文</h2>
+    ${L.examples.map((x,i)=>`<div class="item"><div class="t"><b>${esc(x.en)}</b><small>${esc(x.ja)}</small></div><button class="sm" data-p="${i}">🔊</button><button class="sm" data-s="${i}">🐢</button></div>`).join("")}
+    <p class="hint">声に出して、まねして3回ずつ言ってみましょう。</p>
+    <div class="row" style="margin-top:12px"><button class="primary grow" id="ptOk" style="padding:12px">わかった（例文をフレーズ帳へ）</button></div>`;
+  $("pointBox").querySelectorAll("[data-p]").forEach(b => b.onclick = () => speak(L.examples[+b.dataset.p].en));
+  $("pointBox").querySelectorAll("[data-s]").forEach(b => b.onclick = () => speak(L.examples[+b.dataset.s].en, S.slow));
+  $("ptBack").onclick = renderToday;
+  $("ptOk").onclick = async () => {
+    $("ptOk").disabled = true;
+    const ens = L.examples.map(x=>x.en);
+    const { data:have } = await sb.from("ek_phrases").select("en").in("en", ens);
+    const rows = L.examples.filter(x => !(have||[]).some(h=>h.en===x.en)).map(x => ({ en:x.en, ja:x.ja, note:L.point_title, scene:weekOf().t }));
+    if (rows.length) await sb.from("ek_phrases").insert(rows);
+    await markDone("point"); toast("フレーズ帳に入れました"); renderToday();
+  };
+}
+// TOEIC Part 2 形式クイズ
+let qz = null;
+function startQuiz() {
+  qz = { list:course.lesson.quiz || [], i:0, ok:0, at:Date.now(), show:false };
+  $("todayBox").classList.add("hidden"); $("quizBox").classList.remove("hidden"); paintQuiz();
+}
+async function playQuiz(q) {
+  await speak(q.q); for (let i=0;i<3;i++) { await new Promise(r=>setTimeout(r,500)); if (!qz || qz.cur !== q) return; await speak(`${"ABC"[i]}. ${q.choices[i]}`); }
+}
+function paintQuiz() {
+  const q = qz.list[qz.i]; window.scrollTo(0,0);
+  if (!q) {
+    const sc = qz.list.length ? Math.round(qz.ok/qz.list.length*100) : 0;
+    $("quizBox").innerHTML = `<div class="flash"><div class="big">${qz.ok} / ${qz.list.length}</div><p>クイズおわり！</p><button class="primary" id="qzBack">今日のメニューへ</button></div>`;
+    $("qzBack").onclick = renderToday;
+    markDone("quiz");
+    sb.from("ek_sessions").insert({ mode:"quiz", scene:`Week${course.week} Day${course.day}`, minutes:Math.max(1,Math.round((Date.now()-qz.at)/60000)), score:sc, data:{ list:qz.list } });
+    return;
+  }
+  qz.cur = q; qz.answered = false;
+  $("quizBox").innerHTML = `<div class="row"><button class="sm" id="qzQuit">‹ もどる</button><span class="grow"></span><span class="tag">${qz.i+1} / ${qz.list.length}</span></div>
+    <h2>🎧 問題を聞いて、いちばん自然な応答を選ぶ</h2>
+    <div class="hint">TOEIC Part 2 と同じ形式です。最初は文字を隠して、耳だけで挑戦してみましょう。</div>
+    <div class="player"><button class="blue" id="qzPlay">▶ 問題を聞く</button><button id="qzSlow">🐢</button></div>
+    <label style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" id="qzShow" style="width:auto" ${qz.show?"checked":""}> 文字を表示する</label>
+    <div class="card ${qz.show?"":"hidden"}" id="qzQ" style="font-size:17px">${esc(q.q)}</div>
+    <div id="qzOpts">${q.choices.map((c,i)=>`<button class="qopt" data-i="${i}"><b>(${"ABC"[i]})</b><span class="grow qtext ${qz.show?"":"hidden"}">${esc(c)}</span></button>`).join("")}</div>
+    <div id="qzAns" class="hidden card"></div>`;
+  $("qzPlay").onclick = () => playQuiz(q);
+  $("qzSlow").onclick = async () => { await speak(q.q, S.slow); for (let i=0;i<3;i++){ await new Promise(r=>setTimeout(r,400)); if (qz.cur!==q) return; await speak(`${"ABC"[i]}. ${q.choices[i]}`, S.slow);} };
+  $("qzShow").onchange = e => { qz.show = e.target.checked; $("qzQ").classList.toggle("hidden", !qz.show); document.querySelectorAll(".qtext").forEach(x=>x.classList.toggle("hidden", !qz.show)); };
+  $("qzQuit").onclick = () => { stopAudio(); qz = null; renderToday(); };
+  document.querySelectorAll("#qzOpts .qopt").forEach(b => b.onclick = () => {
+    if (qz.answered) return; qz.answered = true; stopAudio();
+    const pick = +b.dataset.i, ok = pick === q.answer; if (ok) qz.ok++;
+    document.querySelectorAll("#qzOpts .qopt").forEach((x,i) => { if (i===q.answer) x.classList.add("ok"); else if (i===pick) x.classList.add("ng"); });
+    $("qzQ").classList.remove("hidden"); document.querySelectorAll(".qtext").forEach(x=>x.classList.remove("hidden"));
+    $("qzAns").classList.remove("hidden");
+    $("qzAns").innerHTML = `<b>${ok?"⭕ 正解！":"❌ ざんねん"}</b><p class="ja2" style="line-height:1.7">${esc(q.ja)}</p>
+      <div class="row"><button class="sm" id="qzAgain">🔊 もう一度聞く</button><span class="grow"></span><button class="primary" id="qzNext">${qz.i < qz.list.length-1 ? "次へ" : "結果を見る"}</button></div>`;
+    $("qzAgain").onclick = () => playQuiz(q);
+    $("qzNext").onclick = () => { stopAudio(); qz.i++; paintQuiz(); };
+  });
+  setTimeout(() => playQuiz(q), 300);
+}
+// カリキュラム一覧
+$("cOpenList").onclick = async () => {
+  if (!course && !(await loadCourse())) return;
+  let html = `<div class="row"><h3 class="grow">カリキュラム（全${COURSE.length}週）</h3><button class="sm" id="clClose">閉じる</button></div>
+    <p class="hint">1週＝5日分（1日15〜20分）。易しすぎ・難しすぎるときは、週を選んでそこから始められます。</p>`;
+  let st = 0;
+  COURSE.forEach((w,i) => {
+    if (w.st !== st) { st = w.st; html += `<div class="stage">${esc(STAGES[st])}</div>`; }
+    const n = i+1, cur = n === course.week, fin = n < course.week;
+    html += `<div class="wk ${cur?"cur":""}" data-w="${n}"><span class="no">${fin?"✅":cur?"▶︎":""} W${n}</span><span class="grow"><b>${esc(w.t)}</b><br><small class="hint">${esc(w.g)}</small></span></div>`;
+  });
+  $("courseBody").innerHTML = html; $("courseDlg").showModal();
+  $("clClose").onclick = () => $("courseDlg").close();
+  $("courseBody").querySelectorAll("[data-w]").forEach(el => el.onclick = async () => {
+    const n = +el.dataset.w; if (n === course.week) return $("courseDlg").close();
+    if (!confirm(`Week ${n}「${COURSE[n-1].t}」の Day 1 から始めますか？`)) return;
+    await saveCourse({ week:n, day:1, done:{}, lesson:null, lesson_key:null }); $("courseDlg").close(); show("today");
+  });
+};
+
 // ===== ログイン・起動 =====
 $("loginForm").onsubmit = async e => {
   e.preventDefault(); $("lBtn").disabled = true; $("lMsg").textContent = "";
   const { error } = await sb.auth.signInWithPassword({ email:$("lEmail").value.trim(), password:$("lPass").value });
   $("lBtn").disabled = false;
   if (error) { $("lMsg").textContent = "ログインできませんでした：" + error.message; return; }
-  $("lPass").value = ""; show("talk"); loadRate();
+  $("lPass").value = ""; show("today"); loadRate();
 };
 document.addEventListener("visibilitychange", () => { if (document.hidden && recState) recStop(); });
-(async () => { const t = await token(); show(t ? "talk" : "login"); if (t) loadRate(); })();
+(async () => { const t = await token(); show(t ? "today" : "login"); if (t) loadRate(); })();
 </script>
 </body>
 </html>

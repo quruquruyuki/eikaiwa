@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
       case "review": return json(await review(b));
       case "material": return json(await material(b));
       case "tts": return json(await tts(b));
+      case "lesson": return json(await lesson(b));
     }
     return json({ error: "不明な処理" }, 400);
   } catch (e) {
@@ -306,6 +307,63 @@ Use expressions people really use in this scene. Each sentence 6-20 words.`;
   }
   const model = await setting("review_model", "claude-sonnet-5-5");
   const r = await claude(model, "You create English listening materials for Japanese learners.", [{ role: "user", content }], MATERIAL_TOOL, 3000);
+  return { ...r.out, usd: r.usd };
+}
+
+// ---------- カリキュラムの「今日のレッスン」 ----------
+const LESSON_TOOL = {
+  name: "lesson",
+  description: "Today's lesson for a Japanese adult relearning English",
+  input_schema: {
+    type: "object",
+    properties: {
+      point_title: { type: "string", description: "今日のポイントの見出し（日本語、15字以内）" },
+      point_ja: { type: "string", description: "今日の文法・表現のミニ解説（日本語、中学英語があやしい大人向けにやさしく。3〜6行、改行で区切る）" },
+      examples: {
+        type: "array", description: "ポイントを使った大事な例文3つ（今日の場面で実際に使える文）",
+        items: { type: "object", properties: { en: { type: "string" }, ja: { type: "string" } }, required: ["en", "ja"] },
+      },
+      sentences: {
+        type: "array", description: "聞き取り・シャドーイング用の練習文5つ（今日のポイントを使い、場面に沿った自然な流れ）",
+        items: { type: "object", properties: { en: { type: "string" }, ja: { type: "string" } }, required: ["en", "ja"] },
+      },
+      roleplay_ja: { type: "string", description: "会話練習の説明（日本語1〜2文。相手は誰で、学習者は何をするか。今日のポイントを使うミッションを含める）" },
+      roleplay_en: { type: "string", description: "Instructions for the AI conversation partner: who you are, the situation, and naturally create chances for the learner to use today's point." },
+      quiz: {
+        type: "array", description: "TOEIC Part 2 style: 4 questions. Each is a short question or statement, with 3 spoken responses; exactly one is the natural response. Wrong choices should be plausible traps (similar words, wrong tense, unrelated).",
+        items: {
+          type: "object",
+          properties: {
+            q: { type: "string" }, choices: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 3 },
+            answer: { type: "integer", minimum: 0, maximum: 2 }, ja: { type: "string", description: "問題文と正解の日本語訳、なぜ正解か（短く）" },
+          },
+          required: ["q", "choices", "answer", "ja"],
+        },
+      },
+    },
+    required: ["point_title", "point_ja", "examples", "sentences", "roleplay_ja", "roleplay_en", "quiz"],
+  },
+};
+const DAY_FOCUS: Record<number, string> = {
+  1: "Day 1 of 5: introduce the basic form (affirmative sentences) clearly.",
+  2: "Day 2 of 5: focus on questions and how to answer them.",
+  3: "Day 3 of 5: focus on negative sentences and common mistakes Japanese learners make.",
+  4: "Day 4 of 5: apply the point in a slightly longer, realistic exchange.",
+  5: "Day 5 of 5: review the whole week's point and combine it with earlier basics. Make the roleplay a bit longer.",
+};
+async function lesson(b: any) {
+  const { title = "", grammar = "", scene = "", level = "a1", day = 1, goal = "" } = b;
+  const system = `あなたは、中学英語からやり直す日本人の大人のための英語の先生です。1日15〜20分のカリキュラムの「今日のレッスン」を作ります。
+学習者の目的：${goal || "海外旅行・仕事（学会・医師との会話・英語論文）・日常会話・TOEIC"}
+英文はレベルに合わせること：${levelOf(level)}
+日本語の解説はやさしく、専門用語（「三人称単数」など）を使うときは一言で意味を添えてください。`;
+  const content = `今週のテーマ：${title}
+今週の文法・表現：${grammar}
+場面：${scene}
+${DAY_FOCUS[Number(day)] ?? DAY_FOCUS[1]}
+Make the content different from a generic textbook: use the scene, and keep every English sentence at the learner's level.`;
+  const model = await setting("review_model", "claude-sonnet-5-5");
+  const r = await claude(model, system, [{ role: "user", content }], LESSON_TOOL, 4000);
   return { ...r.out, usd: r.usd };
 }
 
