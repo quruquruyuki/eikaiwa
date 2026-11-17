@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
       case "material": return json(await material(b));
       case "tts": return json(await tts(b));
       case "lesson": return json(await lesson(b));
+      case "handwriting": return json(await handwriting(b));
     }
     return json({ error: "不明な処理" }, 400);
   } catch (e) {
@@ -365,6 +366,30 @@ Make the content different from a generic textbook: use the scene, and keep ever
   const model = await setting("review_model", "claude-sonnet-5-5");
   const r = await claude(model, system, [{ role: "user", content }], LESSON_TOOL, 4000);
   return { ...r.out, usd: r.usd };
+}
+
+// ---------- 手書きの読み取り（ディクテーション） ----------
+async function handwriting(b: any) {
+  const image = String(b.image ?? "");
+  if (image.length < 100) throw new Error("手書きの画像がありません");
+  if (image.length > 6_000_000) throw new Error("画像が大きすぎます");
+  const model = await setting("hand_model", "claude-sonnet-5-5");
+  const r = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: { "x-api-key": env("ANTHROPIC_API_KEY"), "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({
+      model, max_tokens: 4000,
+      messages: [{ role: "user", content: [
+        { type: "image", source: { type: "base64", media_type: "image/png", data: image } },
+        { type: "text", text: "This is English handwriting by a learner doing a dictation exercise. Transcribe exactly what is written, letter by letter. Keep every spelling mistake, missing word, and wrong word exactly as written — do NOT correct anything or guess the intended sentence. If a letter is unclear, choose what it most looks like. Output only the transcribed text on one line, nothing else. If nothing is written, output an empty line." },
+      ] }],
+    }),
+  });
+  const d = await r.json();
+  if (!r.ok) throw new Error(`読み取り: ${d.error?.message ?? r.status}`);
+  const text = (d.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("").trim().replace(/^["“]|["”]$/g, "");
+  const usd = await usdOf(model, d.usage?.input_tokens ?? 0, d.usage?.output_tokens ?? 0);
+  return { text, usd };
 }
 
 // ---------- 読み上げ ----------

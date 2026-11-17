@@ -59,6 +59,9 @@
   .qopt { display:flex; gap:10px; align-items:center; width:100%; text-align:left; padding:12px; margin-top:8px; border-radius:10px; }
   .qopt.ok { background:var(--okbg); border-color:#9ccfab; } .qopt.ng { background:var(--ngbg); border-color:#f0b4ab; }
   .backbar { background:var(--bluebg); border-radius:10px; padding:10px 12px; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+  #pen { width:100%; height:240px; border:1px solid var(--line); border-radius:10px; touch-action:none; display:block; background:#fff;
+    background-image:repeating-linear-gradient(#fff 0 59px, #e3eaf3 59px 60px); }
+  .handimg { width:100%; max-height:150px; object-fit:contain; object-position:left top; border:1px solid var(--line); border-radius:8px; margin-top:8px; background:#fff; }
   .tag { font-size:12px; padding:2px 8px; border-radius:4px; background:var(--soft); color:var(--sub); white-space:nowrap; }
   .tag.ok { background:var(--okbg); color:#2b593f; } .tag.ng { background:var(--ngbg); color:#5d1715; } .tag.b { background:var(--bluebg); color:#1f5aa6; }
 
@@ -199,6 +202,9 @@
       </div>
       <p class="hint" id="dCount"></p>
       <div id="dInputBox">
+        <div class="row" style="margin-bottom:8px"><div class="seg2" id="dMode"><button data-m="kb">⌨︎ キーボード</button><button data-m="pen">✍️ 手書き</button></div>
+          <span class="grow"></span><span id="penTools" class="row hidden"><button class="sm" id="penUndo">↶ 戻す</button><button class="sm" id="penClear">消す</button></span></div>
+        <div id="penWrap" class="hidden"><canvas id="pen"></canvas><p class="hint" style="margin:4px 0 0">Apple Pencilで書いてください。ペンを使うと手のひらが触れても線は引かれません。答え合わせでAIが読み取ります。</p></div>
         <textarea id="dInput" placeholder="聞こえた英語を書く" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
         <p class="hint" id="dHintText"></p>
         <div class="row" style="margin-top:8px">
@@ -343,7 +349,7 @@ const dayOf = iso => { const d=new Date(iso); return `${d.getFullYear()}-${Strin
 const addDays = (ymd, n) => { const d=new Date(ymd+"T00:00:00"); d.setDate(d.getDate()+n); return dayOf(d); };
 async function token() { const { data } = await sb.auth.getSession(); return data.session?.access_token; }
 
-const DEF = { level:"b1", voice:"alloy", slow:0.7, auto:true, showJa:false };
+const DEF = { dictInput:"kb", level:"b1", voice:"alloy", slow:0.7, auto:true, showJa:false };
 let S = { ...DEF, ...JSON.parse(localStorage.getItem("ek-settings") || "{}") };
 
 // 料金の目安（今月分を端末に記録）
@@ -914,16 +920,60 @@ const dict = { mat:null, i:0, plays:0, results:[], at:0, hintLv:0 };
 function startDict(mat) {
   Object.assign(dict, { mat, i:0, results:[], at:Date.now() });
   $("dictPick").classList.add("hidden"); $("dictDone").classList.add("hidden"); $("dictRun").classList.remove("hidden"); $("dictQuit").classList.remove("hidden");
-  $("dictTitle").textContent = mat.title; paintDict(); setTimeout(() => $("dPlay").click(), 300);
+  $("dictTitle").textContent = mat.title; paintDictMode(); paintDict(); setTimeout(() => $("dPlay").click(), 300);
 }
 function paintDict() {
   const s = dict.mat.sentences[dict.i]; dict.plays = 0; dict.hintLv = 0;
   $("dictPos").textContent = `${dict.i+1} / ${dict.mat.sentences.length}`;
   $("dictBar").style.width = (dict.i / dict.mat.sentences.length * 100) + "%";
-  $("dInput").value = ""; $("dHintText").textContent = ""; $("dCount").textContent = "";
+  $("dInput").value = ""; $("dHintText").textContent = ""; $("dCount").textContent = ""; penClear();
   $("dInputBox").classList.remove("hidden"); $("dResult").classList.add("hidden");
   ttsUrl(s.en).catch(()=>{}); const nx = dict.mat.sentences[dict.i+1]; if (nx) ttsUrl(nx.en).catch(()=>{}); // 先に用意しておく
 }
+// ===== 手書き（Apple Pencil） =====
+const pen = { strokes:[], cur:null, penSeen:false };
+function penSize() {
+  const c = $("pen"), r = c.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  if (!r.width) return;
+  if (c.width !== Math.round(r.width*dpr) || c.height !== Math.round(r.height*dpr)) { c.width = Math.round(r.width*dpr); c.height = Math.round(r.height*dpr); penDraw(); }
+}
+function penDraw() {
+  const c = $("pen"), g = c.getContext("2d"), dpr = window.devicePixelRatio || 1;
+  g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,c.width,c.height); g.setTransform(dpr,0,0,dpr,0,0);
+  g.lineCap = "round"; g.lineJoin = "round"; g.strokeStyle = "#1d1d1f";
+  for (const st of pen.strokes) for (let i=1;i<st.length;i++) {
+    g.lineWidth = 1.4 + (st[i].p || .5) * 2.6; g.beginPath(); g.moveTo(st[i-1].x, st[i-1].y); g.lineTo(st[i].x, st[i].y); g.stroke();
+  }
+}
+function penClear() { pen.strokes = []; pen.cur = null; if ($("pen").width) penDraw(); }
+function penImage() {
+  // 白い背景に字だけを描いた画像（罫線なし）をAIに渡す
+  const c = $("pen"), o = document.createElement("canvas"); o.width = c.width; o.height = c.height;
+  const g = o.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0,0,o.width,o.height); g.drawImage(c,0,0);
+  return o.toDataURL("image/png");
+}
+(() => {
+  const c = $("pen"), pt = e => { const r = c.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top, p:e.pressure || .5 }; };
+  // Apple Pencilを一度でも使ったら、指や手のひらのタッチは無視する
+  const ok = e => { if (e.pointerType === "pen") pen.penSeen = true; return !(pen.penSeen && e.pointerType === "touch"); };
+  c.addEventListener("pointerdown", e => { if (!ok(e)) return; e.preventDefault(); c.setPointerCapture(e.pointerId); pen.cur = [pt(e)]; pen.strokes.push(pen.cur); });
+  c.addEventListener("pointermove", e => {
+    if (!pen.cur || !ok(e)) return; e.preventDefault();
+    for (const ev of (e.getCoalescedEvents?.() || [e])) pen.cur.push(pt(ev));
+    penDraw();
+  });
+  const end = () => { pen.cur = null; }; c.addEventListener("pointerup", end); c.addEventListener("pointercancel", end);
+  window.addEventListener("resize", () => S.dictInput === "pen" && penSize());
+})();
+$("penUndo").onclick = () => { pen.strokes.pop(); penDraw(); };
+$("penClear").onclick = penClear;
+function paintDictMode() {
+  const p = S.dictInput === "pen";
+  document.querySelectorAll("#dMode button").forEach(b => b.classList.toggle("on", (b.dataset.m === "pen") === p));
+  $("penWrap").classList.toggle("hidden", !p); $("penTools").classList.toggle("hidden", !p); $("dInput").classList.toggle("hidden", p);
+  if (p) requestAnimationFrame(penSize);
+}
+document.querySelectorAll("#dMode button").forEach(b => b.onclick = () => { S.dictInput = b.dataset.m; localStorage.setItem("ek-settings", JSON.stringify(S)); paintDictMode(); });
 const dPlayAt = async rate => { dict.plays++; $("dCount").textContent = `再生 ${dict.plays} 回`; await speak(dict.mat.sentences[dict.i].en, rate); };
 $("dPlay").onclick = () => dPlayAt(1);
 $("dSlow").onclick = () => dPlayAt(S.slow);
@@ -933,15 +983,25 @@ $("dHint").onclick = () => {
     const keep = dict.hintLv >= 2 ? Math.ceil((m[2]+m[3]).length/2) : 1; const body = m[2]+m[3];
     return m[1] + body.slice(0,keep) + body.slice(keep).replace(/[A-Za-z0-9]/g,"_") + m[4]; }).join(" ");
 };
-$("dCheck").onclick = () => {
-  const s = dict.mat.sentences[dict.i], ans = $("dInput").value;
-  if (!ans.trim() && !confirm("何も書いていません。答えを見ますか？")) return;
+$("dCheck").onclick = async () => {
+  const s = dict.mat.sentences[dict.i];
+  let ans = $("dInput").value, img = "";
+  if (S.dictInput === "pen") {
+    if (!pen.strokes.length) { if (!confirm("何も書いていません。答えを見ますか？")) return; }
+    else {
+      img = penImage(); $("dCheck").disabled = true; $("dCheck").textContent = "読み取り中…";
+      try { ans = (await api("handwriting", { image:img.split(",")[1] })).text || ""; }
+      catch (e) { toast(e.message, 4000); return; }
+      finally { $("dCheck").disabled = false; $("dCheck").textContent = "答え合わせ"; }
+    }
+  } else if (!ans.trim() && !confirm("何も書いていません。答えを見ますか？")) return;
   const c = compare(s.en, ans); dict.results.push({ en:s.en, ans, score:c.score, plays:dict.plays });
   $("dInputBox").classList.add("hidden"); $("dResult").classList.remove("hidden");
   const last = dict.i >= dict.mat.sentences.length - 1;
   $("dResult").innerHTML = `<div class="row"><span class="big" style="font-size:30px">${c.score}%</span><span class="grow"></span><span class="tag">再生 ${dict.plays} 回</span></div>
     <div class="diff" style="margin-top:6px">${c.html}</div>
     <div class="hint" style="margin-top:4px">緑＝聞き取れた　<span style="color:var(--red)">赤＝聞き逃し</span>　<s>灰色</s>＝余分</div>
+    ${img ? `<div class="hint" style="margin-top:8px">AIが読み取った文字：<b style="color:var(--fg)">${esc(ans || "（読み取れず）")}</b></div><img class="handimg" src="${img}">` : ""}
     <p class="ja2">${esc(s.ja)}</p>
     <div class="row"><button class="sm" id="drSay">🔊 もう一度</button><button class="sm" id="drSlow">🐢</button><button class="sm" id="drAdd">＋フレーズ帳</button><span class="grow"></span>
       <button class="primary" id="drNext">${last ? "結果を見る" : "次へ"}</button></div>`;
