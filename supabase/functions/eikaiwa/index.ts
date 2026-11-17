@@ -111,18 +111,38 @@ async function transcribe(form: FormData) {
 }
 
 // ---------- Claude 呼び出し（決まった入れ物に記入させる） ----------
+// 「入れ物を必ず使う」指定ができないモデルがあるので、そのときは指定なし（auto）でやり直す
+const noForcedTool = new Set<string>();
 async function claude(model: string, system: string, messages: any[], tool: any, maxTokens = 1200) {
-  const r = await fetch("https://api.anthropic.com/v1/messages", {
+  const call = (forced: boolean) => fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": env("ANTHROPIC_API_KEY"), "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model, max_tokens: maxTokens, system, messages, tools: [tool], tool_choice: { type: "tool", name: tool.name } }),
+    body: JSON.stringify({
+      model, max_tokens: forced ? maxTokens : maxTokens + 4000,
+      system: forced ? system : `${system}\n\nAlways answer by calling the "${tool.name}" tool exactly once. Do not answer in plain text.`,
+      messages, tools: [tool],
+      tool_choice: forced ? { type: "tool", name: tool.name } : { type: "auto" },
+    }),
   });
-  const d = await r.json();
+  let forced = !noForcedTool.has(model);
+  let r = await call(forced);
+  let d = await r.json();
+  if (!r.ok && forced && /tool_choice/i.test(d.error?.message ?? "")) {
+    noForcedTool.add(model); forced = false;
+    r = await call(false); d = await r.json();
+  }
   if (!r.ok) throw new Error(`AI: ${d.error?.message ?? r.status}`);
   const use = (d.content ?? []).find((c: any) => c.type === "tool_use");
-  if (!use) throw new Error("AIの返事を読み取れませんでした");
+  let out = use?.input;
+  if (!out) {
+    // 入れ物を使わず文章で返ってきたときは、中のJSONを探す
+    const text = (d.content ?? []).filter((c: any) => c.type === "text").map((c: any) => c.text).join("");
+    const m = text.match(/\{[\s\S]*\}/);
+    try { out = m ? JSON.parse(m[0]) : null; } catch { out = null; }
+  }
+  if (!out) { console.error("no tool_use", model, JSON.stringify(d).slice(0, 1500)); throw new Error("AIの返事を読み取れませんでした"); }
   const usd = await usdOf(model, d.usage?.input_tokens ?? 0, d.usage?.output_tokens ?? 0);
-  return { out: use.input, usd, model };
+  return { out, usd, model };
 }
 
 const LEVEL: Record<string, string> = {
