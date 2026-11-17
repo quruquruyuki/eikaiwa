@@ -57,7 +57,8 @@ async function isAllowedUser(req: Request) {
   });
   if (!r.ok) return false;
   const u = await r.json();
-  const allowed = env("ALLOWED_EMAIL").toLowerCase().split(",").map((x) => x.trim()).filter(Boolean);
+  // ALLOWED_EMAIL（全アプリ共通）に加えて、英会話だけ使える人を EIKAIWA_ALLOWED_EMAIL に書ける（カンマ区切り）
+  const allowed = `${env("ALLOWED_EMAIL")},${env("EIKAIWA_ALLOWED_EMAIL")}`.toLowerCase().split(",").map((x) => x.trim()).filter(Boolean);
   return !!u.email && allowed.includes(String(u.email).toLowerCase());
 }
 const json = (body: unknown, status = 200) =>
