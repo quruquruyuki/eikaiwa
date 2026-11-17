@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="英会話">
+<meta name="theme-color" content="#ffffff">
+<title>英会話</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<style>
+  :root { --fg:#37352f; --sub:#787774; --line:#e9e9e7; --bg:#fff; --soft:#f7f6f3; --red:#e03e3e; --blue:#2383e2; --green:#2b8a57;
+    --okbg:#dbeddb; --ngbg:#ffe2dd; --bluebg:#e7f0fb; }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans",sans-serif; color:var(--fg); background:var(--bg); font-size:16px; }
+  header { position:sticky; top:0; background:rgba(255,255,255,.95); backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+    padding:calc(env(safe-area-inset-top) + 10px) 16px 10px; display:flex; align-items:center; gap:8px; z-index:5; }
+  header h1 { font-size:18px; margin:0; flex:1; }
+  button { font:inherit; color:inherit; background:none; border:1px solid var(--line); border-radius:8px; padding:8px 12px; cursor:pointer; }
+  button.primary { background:var(--fg); color:#fff; border-color:var(--fg); }
+  button.blue { background:var(--blue); color:#fff; border-color:var(--blue); }
+  button:disabled { opacity:.4; }
+  button.sm { padding:4px 9px; font-size:13px; }
+  .icon { border:none; font-size:20px; padding:6px 8px; }
+  main { padding:16px; padding-bottom:calc(env(safe-area-inset-bottom) + 90px); max-width:720px; margin:0 auto; }
+  nav.tabs { position:fixed; left:0; right:0; bottom:0; background:rgba(255,255,255,.97); backdrop-filter:blur(8px); border-top:1px solid var(--line);
+    display:flex; padding:6px 4px calc(env(safe-area-inset-bottom) + 6px); z-index:6; }
+  nav.tabs button { flex:1; border:none; padding:4px 0; font-size:11px; color:var(--sub); display:flex; flex-direction:column; align-items:center; gap:2px; }
+  nav.tabs button b { font-size:20px; font-weight:400; line-height:1.1; }
+  nav.tabs button.on { color:var(--fg); font-weight:600; }
+  .hint { color:var(--sub); font-size:13px; line-height:1.6; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .row.c { justify-content:center; }
+  .grow { flex:1; }
+  label { display:block; font-size:13px; color:var(--sub); margin:14px 0 4px; }
+  input, select, textarea { width:100%; font:inherit; color:inherit; border:1px solid var(--line); border-radius:8px; padding:10px; background:#fff; }
+  textarea { min-height:80px; line-height:1.6; resize:vertical; }
+  h2 { font-size:16px; margin:22px 0 8px; }
+  h2:first-child { margin-top:4px; }
+  .card { background:var(--soft); border-radius:12px; padding:14px; margin-top:10px; }
+  .hidden { display:none !important; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { border:1px solid var(--line); border-radius:20px; padding:8px 14px; font-size:14px; background:#fff; }
+  .chip.on { background:var(--fg); color:#fff; border-color:var(--fg); }
+  .seg2 { display:inline-flex; background:var(--soft); border-radius:9px; padding:3px; }
+  .seg2 button { border:none; border-radius:7px; padding:6px 14px; color:var(--sub); font-size:14px; }
+  .seg2 button.on { background:#fff; color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.12); font-weight:600; }
+  .tag { font-size:12px; padding:2px 8px; border-radius:4px; background:var(--soft); color:var(--sub); white-space:nowrap; }
+  .tag.ok { background:var(--okbg); color:#2b593f; } .tag.ng { background:var(--ngbg); color:#5d1715; } .tag.b { background:var(--bluebg); color:#1f5aa6; }
+
+  /* 会話 */
+  #chatLog { display:flex; flex-direction:column; gap:10px; padding-bottom:180px; }
+  .bub { max-width:86%; padding:10px 12px; border-radius:14px; line-height:1.55; }
+  .bub.ai { background:var(--soft); align-self:flex-start; border-bottom-left-radius:4px; }
+  .bub.me { background:var(--bluebg); align-self:flex-end; border-bottom-right-radius:4px; }
+  .bub .ja { color:var(--sub); font-size:14px; margin-top:6px; border-top:1px dashed var(--line); padding-top:6px; }
+  .bub .tools { display:flex; gap:6px; margin-top:6px; }
+  .bub .tools button { padding:2px 8px; font-size:12px; background:#fff; }
+  .bub.hintb { background:#fff8e6; align-self:stretch; max-width:100%; font-size:14px; }
+  .dock { position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 58px); background:rgba(255,255,255,.97); border-top:1px solid var(--line);
+    padding:10px 16px; z-index:5; }
+  .dock .inner { max-width:720px; margin:0 auto; }
+  .mic { width:72px; height:72px; border-radius:50%; border:4px solid var(--line); background:#fff; display:inline-flex; align-items:center; justify-content:center; padding:0; flex:none; }
+  .mic span { width:44px; height:44px; border-radius:50%; background:var(--red); transition:.2s; }
+  .mic.on span { width:26px; height:26px; border-radius:6px; }
+  .mic.busy span { background:var(--sub); animation:pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity:.3; } }
+  .status { font-size:13px; color:var(--sub); text-align:center; min-height:18px; margin-top:4px; }
+
+  /* 練習カード */
+  .sent { font-size:20px; line-height:1.6; margin:6px 0; }
+  .sent.blur { filter:blur(7px); user-select:none; }
+  .ja2 { color:var(--sub); font-size:14px; line-height:1.6; }
+  .diff { font-size:18px; line-height:1.9; }
+  .diff .ok { color:var(--green); }
+  .diff .miss { color:var(--red); text-decoration:underline; text-decoration-style:wavy; text-underline-offset:4px; }
+  .diff .extra { color:var(--sub); text-decoration:line-through; }
+  .big { font-size:40px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .progress { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin:8px 0 4px; }
+  .progress div { height:100%; background:var(--blue); width:0; transition:.3s; }
+  .player { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0; }
+  .player button { flex:1; min-width:90px; padding:12px 8px; }
+
+  .item { padding:12px 2px; border-bottom:1px solid var(--line); display:flex; gap:10px; align-items:flex-start; }
+  .item .t { flex:1; min-width:0; }
+  .item .t b { display:block; font-weight:600; line-height:1.45; }
+  .item .t small { color:var(--sub); line-height:1.5; display:block; margin-top:2px; }
+  .corr { background:#fff; border-radius:10px; padding:10px 12px; margin-top:8px; border:1px solid var(--line); }
+  .corr .said { color:var(--sub); text-decoration:line-through; text-decoration-color:#e0a09b; }
+  .corr .better { font-weight:600; margin:4px 0; }
+
+  .stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .stat { background:var(--soft); border-radius:10px; padding:12px 8px; text-align:center; }
+  .stat b { display:block; font-size:24px; font-variant-numeric:tabular-nums; }
+  .stat small { color:var(--sub); font-size:12px; }
+  .heat { display:grid; grid-template-rows:repeat(7,1fr); grid-auto-flow:column; gap:3px; margin-top:8px; }
+  .heat i { width:100%; aspect-ratio:1; border-radius:3px; background:var(--line); display:block; }
+  .heat i.l1 { background:#b7dcc4; } .heat i.l2 { background:#6fbf8e; } .heat i.l3 { background:#2b8a57; }
+  .heat i.today { outline:2px solid var(--fg); outline-offset:-1px; }
+
+  dialog { border:none; border-radius:14px; padding:0; width:min(92vw,520px); max-height:86vh; }
+  dialog::backdrop { background:rgba(0,0,0,.3); }
+  .dlg { padding:16px 18px 20px; overflow:auto; max-height:86vh; }
+  .dlg h3 { margin:0 0 6px; font-size:17px; }
+  .toast { position:fixed; left:50%; bottom:calc(env(safe-area-inset-bottom) + 150px); transform:translateX(-50%); background:var(--fg); color:#fff;
+    padding:10px 16px; border-radius:10px; font-size:14px; opacity:0; transition:.3s; pointer-events:none; max-width:90vw; z-index:30; }
+  .toast.show { opacity:1; }
+  .flash { text-align:center; padding:24px 8px; }
+  .flash .q { font-size:18px; line-height:1.6; }
+  .flash .a { font-size:20px; font-weight:600; line-height:1.6; margin-top:14px; }
+</style>
+</head>
+<body>
+
+<!-- ログイン -->
+<section id="v-login" class="hidden">
+  <header><h1>英会話</h1></header>
+  <main>
+    <p class="hint">ほかのアプリと同じアカウントでログインします。</p>
+    <form id="loginForm">
+      <label>メールアドレス</label><input id="lEmail" type="email" autocomplete="username" required>
+      <label>パスワード</label><input id="lPass" type="password" autocomplete="current-password" required>
+      <div class="row" style="margin-top:16px"><button id="lBtn" class="primary grow">ログイン</button></div>
+      <p id="lMsg" class="hint" style="color:var(--red)"></p>
+    </form>
+  </main>
+</section>
+
+<!-- 会話 -->
+<section id="v-talk" class="hidden">
+  <header><h1 id="talkTitle">会話</h1><button id="talkEnd" class="sm hidden">終了して添削</button><button class="icon" data-settings>⚙︎</button></header>
+  <main>
+    <div id="talkSetup">
+      <h2>場面をえらぶ</h2>
+      <div class="chips" id="sceneChips"></div>
+      <div id="sceneCustomBox" class="hidden">
+        <label>どんな場面？（日本語でOK）</label>
+        <textarea id="sceneCustom" placeholder="例：海外の学会でポスター発表を見に来た医師に、研究内容を説明する"></textarea>
+      </div>
+      <p class="hint" id="sceneDesc" style="margin-top:10px"></p>
+      <div class="row" style="margin-top:14px"><button id="talkStart" class="primary grow" style="padding:12px">会話をはじめる</button></div>
+      <p class="hint">マイクのボタンを押して話し、もう一度押すと送信されます。会話中は直さず、終わったあとにまとめて添削します。</p>
+    </div>
+    <div id="talkRoom" class="hidden"><div id="chatLog"></div></div>
+    <div id="talkReview" class="hidden"></div>
+  </main>
+  <div class="dock hidden" id="talkDock"><div class="inner">
+    <div class="row" id="dockVoice">
+      <button id="hintBtn" class="sm">💡 ヒント</button>
+      <div class="grow" style="text-align:center"><button class="mic" id="talkMic"><span></span></button></div>
+      <button id="kbBtn" class="sm">⌨︎ 文字</button>
+    </div>
+    <div class="row hidden" id="dockText">
+      <input id="talkText" class="grow" placeholder="英語で入力" autocapitalize="sentences" autocomplete="off">
+      <button id="talkSend" class="primary">送信</button>
+      <button id="micBack" class="sm">🎤</button>
+    </div>
+    <div class="status" id="talkStatus"></div>
+  </div></div>
+</section>
+
+<!-- ディクテーション -->
+<section id="v-dict" class="hidden">
+  <header><h1>ディクテーション</h1><button class="sm hidden" id="dictQuit">やめる</button><button class="icon" data-settings>⚙︎</button></header>
+  <main>
+    <div id="dictPick"></div>
+    <div id="dictRun" class="hidden">
+      <div class="row"><span class="tag" id="dictPos"></span><span class="hint grow" id="dictTitle"></span></div>
+      <div class="progress"><div id="dictBar"></div></div>
+      <div class="player">
+        <button id="dPlay" class="blue">▶ 再生</button>
+        <button id="dSlow">🐢 ゆっくり</button>
+      </div>
+      <p class="hint" id="dCount"></p>
+      <div id="dInputBox">
+        <textarea id="dInput" placeholder="聞こえた英語を書く" autocapitalize="off" autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+        <p class="hint" id="dHintText"></p>
+        <div class="row" style="margin-top:8px">
+          <button id="dHint" class="sm">ヒント（頭文字）</button>
+          <span class="grow"></span>
+          <button id="dCheck" class="primary">答え合わせ</button>
+        </div>
+      </div>
+      <div id="dResult" class="hidden card"></div>
+    </div>
+    <div id="dictDone" class="hidden"></div>
+  </main>
+</section>
+
+<!-- シャドーイング -->
+<section id="v-shad" class="hidden">
+  <header><h1>シャドーイング</h1><button class="sm hidden" id="shadQuit">やめる</button><button class="icon" data-settings>⚙︎</button></header>
+  <main>
+    <div id="shadPick"></div>
+    <div id="shadRun" class="hidden">
+      <div class="row"><span class="tag" id="shadPos"></span><span class="hint grow" id="shadTitle"></span></div>
+      <div class="progress"><div id="shadBar"></div></div>
+      <div class="row" style="margin:10px 0">
+        <div class="seg2" id="shadMode"><button data-m="repeat" class="on">リピート</button><button data-m="shadow">シャドーイング</button></div>
+        <span class="grow"></span>
+        <label style="margin:0;display:flex;gap:6px;align-items:center;color:var(--fg)"><input type="checkbox" id="shadHide" style="width:auto"> 英文を隠す</label>
+      </div>
+      <div class="card">
+        <div class="sent" id="sEn"></div>
+        <div class="ja2" id="sJa"></div>
+      </div>
+      <p class="hint" id="shadModeHint"></p>
+      <div class="player">
+        <button id="sListen">▶ お手本</button>
+        <button id="sSlow">🐢 ゆっくり</button>
+      </div>
+      <div style="text-align:center;margin:8px 0">
+        <button class="mic" id="sGo"><span></span></button>
+        <div class="status" id="sStatus">押すとはじまります</div>
+      </div>
+      <div id="sResult" class="hidden card"></div>
+    </div>
+    <div id="shadDone" class="hidden"></div>
+  </main>
+</section>
+
+<!-- フレーズ帳 -->
+<section id="v-phr" class="hidden">
+  <header><h1>フレーズ帳</h1><button class="sm" id="phrAdd">＋追加</button><button class="icon" data-settings>⚙︎</button></header>
+  <main>
+    <div id="phrHome">
+      <div class="card row">
+        <div class="grow"><b id="phrDueN">0</b> 件が今日の復習</div>
+        <button class="primary" id="phrReview">復習する</button>
+      </div>
+      <div class="row" style="margin-top:14px">
+        <div class="seg2" id="phrFilter"><button data-f="due" class="on">復習</button><button data-f="all">すべて</button></div>
+        <span class="grow"></span>
+        <button class="sm" id="phrToDict">聞き取り練習へ</button>
+      </div>
+      <div id="phrList"></div>
+    </div>
+    <div id="phrCard" class="hidden"></div>
+  </main>
+</section>
+
+<!-- 記録 -->
+<section id="v-log" class="hidden">
+  <header><h1>記録</h1><button class="icon" data-settings>⚙︎</button></header>
+  <main>
+    <div class="stats">
+      <div class="stat"><b id="stStreak">0</b><small>連続日数</small></div>
+      <div class="stat"><b id="stWeek">0</b><small>今週の学習日</small></div>
+      <div class="stat"><b id="stTotal">0</b><small>累計回数</small></div>
+    </div>
+    <h2>この12週間</h2>
+    <div class="heat" id="heat"></div>
+    <p class="hint">色が濃いほど、その日にたくさん練習しています。</p>
+    <h2>最近の練習</h2>
+    <div id="logList"></div>
+  </main>
+</section>
+
+<nav class="tabs hidden" id="tabs">
+  <button data-v="talk" class="on"><b>💬</b>会話</button>
+  <button data-v="dict"><b>✍︎</b>聞き取り</button>
+  <button data-v="shad"><b>🗣</b>シャドー</button>
+  <button data-v="phr"><b>📒</b>フレーズ</button>
+  <button data-v="log"><b>📈</b>記録</button>
+</nav>
+
+<!-- 設定 -->
+<dialog id="settings"><div class="dlg">
+  <h3>設定</h3>
+  <label>レベル</label>
+  <select id="sLevel"><option value="beginner">初級（やさしい英語）</option><option value="intermediate">中級</option><option value="advanced">上級（ネイティブに近い）</option></select>
+  <label>読み上げの声</label>
+  <select id="sVoice">
+    <option value="alloy">alloy（落ち着いた声）</option><option value="nova">nova（明るい女性）</option><option value="shimmer">shimmer（やわらかい女性）</option>
+    <option value="coral">coral（女性）</option><option value="sage">sage（女性）</option><option value="echo">echo（男性）</option>
+    <option value="onyx">onyx（低い男性）</option><option value="ash">ash（男性）</option><option value="fable">fable（イギリス風）</option>
+    <option value="device">端末の声（無料・オフライン）</option>
+  </select>
+  <label>「ゆっくり」の速さ</label>
+  <select id="sSlowRate"><option value="0.6">0.6倍</option><option value="0.7">0.7倍</option><option value="0.8">0.8倍</option></select>
+  <label style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" id="sAuto" style="width:auto"> 会話でAIの返事を自動で読み上げる</label>
+  <label style="display:flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" id="sShowJa" style="width:auto"> 会話で日本語訳を最初から表示する</label>
+  <p class="hint" id="sCost" style="margin-top:14px"></p>
+  <div class="row" style="margin-top:16px">
+    <button id="sLogout" class="sm">ログアウト</button><span class="grow"></span>
+    <button id="sClose">閉じる</button><button id="sSave" class="primary">保存</button>
+  </div>
+</div></dialog>
+
+<!-- フレーズ追加 -->
+<dialog id="addDlg"><div class="dlg">
+  <h3>フレーズを追加</h3>
+  <label>英語</label><textarea id="aEn" style="min-height:60px" autocapitalize="sentences"></textarea>
+  <label>日本語</label><input id="aJa">
+  <label>メモ（使いどころなど）</label><input id="aNote">
+  <div class="row" style="margin-top:16px"><span class="grow"></span><button id="aClose">閉じる</button><button id="aSave" class="primary">追加</button></div>
+</div></dialog>
+
+<!-- 記録の詳細 -->
+<dialog id="logDlg"><div class="dlg" id="logBody"></div></dialog>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ===== 基本 =====
+const SB_URL = "https://oqtyorwlrnrcyjxiassg.supabase.co";
+const sb = supabase.createClient(SB_URL, "sb_publishable_5KRsDfHG07lsUL7uUr6zpQ_2ehucxbJ");
+const FN = SB_URL + "/functions/v1/eikaiwa";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const toast = (m, ms=2500) => { const t=$("toast"); t.textContent=m; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"), ms); };
+const today = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+const dayOf = iso => { const d=new Date(iso); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; };
+const addDays = (ymd, n) => { const d=new Date(ymd+"T00:00:00"); d.setDate(d.getDate()+n); return dayOf(d); };
+async function token() { const { data } = await sb.auth.getSession(); return data.session?.access_token; }
+
+const DEF = { level:"intermediate", voice:"alloy", slow:0.7, auto:true, showJa:false };
+let S = { ...DEF, ...JSON.parse(localStorage.getItem("ek-settings") || "{}") };
+
+// 料金の目安（今月分を端末に記録）
+let RATE = 155;
+try { const c = JSON.parse(localStorage.getItem("shared-usd-jpy") || "null"); if (c?.v) RATE = c.v; } catch {}
+function addCost(usd) {
+  if (typeof usd !== "number") return;
+  const k = "ek-cost-" + today().slice(0,7); localStorage.setItem(k, String((+localStorage.getItem(k) || 0) + usd));
+}
+async function loadRate() {
+  try {
+    const { data } = await sb.from("app_settings").select("app,key,value,updated_at").eq("app","global").eq("key","usd_jpy");
+    const v = Number(data?.[0]?.value); if (v > 0) { RATE = v; localStorage.setItem("shared-usd-jpy", JSON.stringify({ v, at:data[0].updated_at })); }
+  } catch {}
+}
+
+// サーバー（eikaiwa関数）を呼ぶ
+async function api(action, body = {}) {
+  const t = await token(); if (!t) { show("login"); throw new Error("ログインしてください"); }
+  const r = await fetch(FN, { method:"POST", headers:{ Authorization:`Bearer ${t}`, "Content-Type":"application/json" }, body:JSON.stringify({ action, ...body }) });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) { show("login"); }
+  if (!r.ok || d.error) throw new Error(d.error || `エラー（${r.status}）`);
+  addCost(d.usd); return d;
+}
+
+// ===== 音声：録音 =====
+const REC_MIME = ["audio/mp4","audio/webm;codecs=opus","audio/webm"].find(t => window.MediaRecorder && MediaRecorder.isTypeSupported(t)) || "";
+let recState = null;
+async function recStart() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true } });
+  const rec = new MediaRecorder(stream, REC_MIME ? { mimeType:REC_MIME, audioBitsPerSecond:64000 } : {});
+  const parts = []; rec.ondataavailable = e => e.data.size && parts.push(e.data);
+  const done = new Promise(res => rec.onstop = () => {
+    stream.getTracks().forEach(t => t.stop()); // マイクを離す（iPhoneで再生音が小さくなるのを防ぐ）
+    res(new Blob(parts, { type: rec.mimeType || REC_MIME || "audio/mp4" }));
+  });
+  rec.start(); recState = { rec, done, at:Date.now() };
+}
+async function recStop() {
+  if (!recState) return null;
+  const { rec, done, at } = recState; recState = null;
+  if (rec.state !== "inactive") rec.stop();
+  const blob = await done; return { blob, seconds:(Date.now()-at)/1000 };
+}
+async function transcribe(rec, prompt = "") {
+  if (!rec || rec.seconds < 0.6 || rec.blob.size < 1500) return "";
+  const t = await token();
+  const fd = new FormData();
+  const ext = rec.blob.type.includes("webm") ? "webm" : "m4a";
+  fd.append("file", rec.blob, "speech." + ext); fd.append("seconds", String(rec.seconds)); fd.append("prompt", prompt);
+  const r = await fetch(FN, { method:"POST", headers:{ Authorization:`Bearer ${t}` }, body:fd });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.error) throw new Error(d.error || `聞き取りエラー（${r.status}）`);
+  addCost(d.usd); return d.text || "";
+}
+
+// ===== 音声：再生 =====
+// iPhoneは「タップの直後」でないと音を出せないので、最初のタップで再生用の部品を目覚めさせておく
+const player = new Audio(); player.preload = "auto"; player.playsInline = true;
+let unlocked = false;
+function silentWav() {
+  const n = 800, b = new ArrayBuffer(44 + n*2), v = new DataView(b), w = (o,s) => [...s].forEach((c,i)=>v.setUint8(o+i,c.charCodeAt(0)));
+  w(0,"RIFF"); v.setUint32(4,36+n*2,true); w(8,"WAVE"); w(12,"fmt "); v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,8000,true); v.setUint32(28,16000,true); v.setUint16(32,2,true); v.setUint16(34,16,true); w(36,"data"); v.setUint32(40,n*2,true);
+  return URL.createObjectURL(new Blob([b], { type:"audio/wav" }));
+}
+document.addEventListener("pointerdown", () => {
+  if (unlocked) return; unlocked = true;
+  player.src = silentWav(); player.play().catch(()=>{});
+  try { speechSynthesis.speak(new SpeechSynthesisUtterance("")); } catch {}
+}, { capture:true });
+
+const ttsCache = new Map();
+async function ttsUrl(text) {
+  const key = S.voice + "|" + text;
+  if (ttsCache.has(key)) return ttsCache.get(key);
+  const p = api("tts", { text, voice:S.voice }).then(d => {
+    const bin = atob(d.audio), u8 = new Uint8Array(bin.length); for (let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+    return URL.createObjectURL(new Blob([u8], { type:d.mime || "audio/mpeg" }));
+  });
+  ttsCache.set(key, p); p.catch(() => ttsCache.delete(key)); return p;
+}
+let playToken = 0;
+function stopAudio() { playToken++; try { player.pause(); } catch {} try { speechSynthesis.cancel(); } catch {} }
+// 文を読み上げる。読み終わったら resolve（rate=速さ）
+async function speak(text, rate = 1) {
+  stopAudio(); const my = playToken;
+  if (S.voice !== "device") {
+    try {
+      const url = await ttsUrl(text); if (my !== playToken) return;
+      player.src = url; player.playbackRate = rate; player.defaultPlaybackRate = rate;
+      await new Promise((res, rej) => {
+        player.onended = res; player.onerror = rej; player.onpause = () => my !== playToken && res();
+        player.play().then(() => { player.playbackRate = rate; }).catch(rej);
+      });
+      return;
+    } catch (e) { console.warn("AI読み上げに失敗、端末の声を使います", e); if (my !== playToken) return; }
+  }
+  await new Promise(res => {
+    const u = new SpeechSynthesisUtterance(text); u.lang = "en-US"; u.rate = rate;
+    const v = speechSynthesis.getVoices().find(v => v.lang === "en-US" && /Samantha|Alex|Ava|Allison/.test(v.name)) || speechSynthesis.getVoices().find(v => v.lang.startsWith("en"));
+    if (v) u.voice = v; u.onend = res; u.onerror = res; speechSynthesis.speak(u);
+  });
+}
+function playBlob(blob) { stopAudio(); player.src = URL.createObjectURL(blob); player.playbackRate = 1; return player.play().catch(()=>{}); }
+
+// ===== 英文の比べ方（ディクテーション・シャドーイング共通） =====
+const CONTR = { "i'm":"i am","you're":"you are","we're":"we are","they're":"they are","he's":"he is","she's":"she is","it's":"it is","that's":"that is",
+  "there's":"there is","what's":"what is","let's":"let us","i've":"i have","you've":"you have","we've":"we have","they've":"they have","i'll":"i will",
+  "you'll":"you will","we'll":"we will","they'll":"they will","it'll":"it will","i'd":"i would","you'd":"you would","we'd":"we would","don't":"do not",
+  "doesn't":"does not","didn't":"did not","can't":"can not","cannot":"can not","won't":"will not","isn't":"is not","aren't":"are not","wasn't":"was not",
+  "weren't":"were not","haven't":"have not","hasn't":"has not","wouldn't":"would not","shouldn't":"should not","couldn't":"could not","gonna":"going to","wanna":"want to" };
+const NUM = ["zero","one","two","three","four","five","six","seven","eight","nine","ten","eleven","twelve","thirteen","fourteen","fifteen","sixteen","seventeen","eighteen","nineteen","twenty"];
+function norm(w) { return w.toLowerCase().replace(/[’‘]/g,"'").replace(/[^a-z0-9'%-]/g,"").replace(/^'+|'+$/g,""); }
+// 比べる用の単語列（短縮形・数字をそろえる）＋表示用の元の単語
+function toks(s) {
+  const out = [];
+  for (const raw of String(s).replace(/[—–]/g," ").split(/\s+/)) {
+    const n = norm(raw); if (!n) continue;
+    const parts = (CONTR[n] || (/^\d+$/.test(n) && +n <= 20 ? NUM[+n] : n)).split(/[\s-]+/).filter(Boolean);
+    parts.forEach((p, i) => out.push({ k:p, show: i === 0 ? raw : "" }));
+  }
+  return out;
+}
+// 正解と回答を並べて、合っている／抜けた／余分 を判定
+function compare(ref, ans) {
+  const a = toks(ref), b = toks(ans), n = a.length, m = b.length;
+  const L = Array.from({ length:n+1 }, () => new Int16Array(m+1));
+  for (let i=n-1;i>=0;i--) for (let j=m-1;j>=0;j--) L[i][j] = a[i].k === b[j].k ? L[i+1][j+1]+1 : Math.max(L[i+1][j], L[i][j+1]);
+  const ops = []; let i=0, j=0;
+  while (i<n && j<m) {
+    if (a[i].k === b[j].k) { ops.push({ t:"ok", w:a[i] }); i++; j++; }
+    else if (L[i+1][j] >= L[i][j+1]) { ops.push({ t:"miss", w:a[i] }); i++; }
+    else { ops.push({ t:"extra", w:b[j] }); j++; }
+  }
+  while (i<n) ops.push({ t:"miss", w:a[i++] }); while (j<m) ops.push({ t:"extra", w:b[j++] });
+  const score = n ? Math.round(L[0][0] / n * 100) : 0;
+  // 表示：正解文の単語を「合っている／抜けた」で色分け、余分な語は取り消し線
+  let html = "", prevRef = null;
+  for (const o of ops) {
+    if (o.t === "extra") { html += `<span class="extra">${esc(o.w.show || o.w.k)}</span> `; continue; }
+    if (!o.w.show) { if (o.t === "miss" && prevRef === "ok") html = html.replace(/<span class="ok">([^<]*)<\/span> $/, '<span class="miss">$1</span> '); prevRef = o.t; continue; }
+    html += `<span class="${o.t}">${esc(o.w.show)}</span> `; prevRef = o.t;
+  }
+  return { score, html, missed: ops.filter(o=>o.t==="miss").length };
+}
+
+// ===== 画面切り替え =====
+const VIEWS = ["login","talk","dict","shad","phr","log"];
+let curView = "talk";
+function show(v) {
+  stopAudio();
+  for (const x of VIEWS) $("v-"+x).classList.toggle("hidden", x !== v);
+  $("tabs").classList.toggle("hidden", v === "login");
+  $("talkDock").classList.toggle("hidden", !(v === "talk" && talk.active));
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  if (v !== "login") curView = v;
+  if (v === "phr") renderPhrases(); if (v === "log") renderLog();
+  if (v === "dict" && !dict.mat) renderPicker("dictPick", startDict);
+  if (v === "shad" && !shad.mat) renderPicker("shadPick", startShad);
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => show(b.dataset.v));
+
+// ===== 設定 =====
+document.querySelectorAll("[data-settings]").forEach(b => b.onclick = () => {
+  $("sLevel").value=S.level; $("sVoice").value=S.voice; $("sSlowRate").value=String(S.slow); $("sAuto").checked=S.auto; $("sShowJa").checked=S.showJa;
+  const usd = +localStorage.getItem("ek-cost-" + today().slice(0,7)) || 0;
+  $("sCost").textContent = `今月のAI利用の目安：約${Math.round(usd*RATE)}円（この端末の分。読み上げは含みません）`;
+  $("settings").showModal(); document.activeElement?.blur?.();
+});
+$("sClose").onclick = () => $("settings").close();
+$("sSave").onclick = () => {
+  S = { ...S, level:$("sLevel").value, voice:$("sVoice").value, slow:+$("sSlowRate").value, auto:$("sAuto").checked, showJa:$("sShowJa").checked };
+  localStorage.setItem("ek-settings", JSON.stringify(S)); $("settings").close(); toast("保存しました");
+};
+$("sLogout").onclick = async () => { await sb.auth.signOut(); $("settings").close(); show("login"); };
+
+// ===== 場面 =====
+const SCENES = [
+  { id:"conf", label:"🩺 学会で海外の医師と", desc:"学会のコーヒーブレイクで、海外の医師と雑談（研究・学会の感想・お互いの仕事）。",
+    en:"Coffee break at an international medical conference. You are a urologist from the United States. Make small talk with the learner about the conference, sessions, research, and each other's work. The learner is a Japanese medical representative (MR) at a pharmaceutical company that makes Kampo (traditional Japanese herbal) medicines." },
+  { id:"detail", label:"💊 医師に製品を説明", desc:"英語を話す医師に、漢方製剤を説明。効果・エビデンス・副作用・使い方を質問されます。",
+    en:"You are an English-speaking physician working at a hospital in Japan. The learner is a medical representative from a Kampo (traditional Japanese herbal medicine) company who visits you to explain a product. Ask realistic questions about indications, evidence, side effects, interactions, and dosage. Be polite but a little busy." },
+  { id:"intro", label:"🙋 自己紹介・仕事の話", desc:"初対面の人に自己紹介。仕事・住んでいる所・趣味などを話します。",
+    en:"You just met the learner at a networking event. Ask about their job, where they live, their family and hobbies, and share a little about yourself." },
+  { id:"hotel", label:"🏨 ホテル", desc:"海外のホテルでチェックイン・要望・トラブル対応。",
+    en:"You are a front desk clerk at a hotel in San Francisco. The learner is a guest checking in. Handle the check-in, and respond to requests or small problems (room, Wi-Fi, breakfast, late checkout)." },
+  { id:"rest", label:"🍽 レストラン", desc:"海外のレストランで注文・おすすめを聞く・会計。",
+    en:"You are a friendly server at a restaurant in New York. Seat the learner, explain the menu, take their order, recommend dishes and drinks, and handle the check." },
+  { id:"air", label:"✈️ 空港・入国審査", desc:"入国審査や空港のカウンターでのやりとり。",
+    en:"You are an immigration officer at a US airport, then airport staff if the learner needs help. Ask typical questions (purpose of visit, length of stay, where staying)." },
+  { id:"chat", label:"☕ 雑談", desc:"気軽な雑談。週末・最近のこと・好きなことなど。",
+    en:"You are a friendly English-speaking coworker. Have casual small talk about weekends, recent events, food, hobbies, and travel." },
+  { id:"custom", label:"✏️ 自分で決める", desc:"", en:"" },
+];
+const sceneLabel = id => (SCENES.find(s=>s.id===id)?.label || "").replace(/^\S+\s/,"");
+let sceneId = localStorage.getItem("ek-scene") || "conf";
+function sceneText() {
+  const s = SCENES.find(x=>x.id===sceneId) || SCENES[0];
+  if (s.id === "custom") return `Role-play this scene (described by the learner in Japanese, play the other person): ${$("sceneCustom").value.trim() || "casual conversation"}`;
+  return s.en;
+}
+function sceneName() { return sceneId === "custom" ? ($("sceneCustom").value.trim().slice(0,30) || "自由な場面") : sceneLabel(sceneId); }
+function renderScenes(boxId, onPick) {
+  $(boxId).innerHTML = SCENES.map(s => `<button class="chip ${s.id===sceneId?"on":""}" data-id="${s.id}">${s.label}</button>`).join("");
+  $(boxId).querySelectorAll(".chip").forEach(b => b.onclick = () => { sceneId = b.dataset.id; localStorage.setItem("ek-scene", sceneId); renderScenes(boxId, onPick); onPick?.(); });
+}
+function paintSceneDesc() {
+  const s = SCENES.find(x=>x.id===sceneId); $("sceneDesc").textContent = s?.desc || "";
+  $("sceneCustomBox").classList.toggle("hidden", sceneId !== "custom");
+}
+
+// ===== 会話 =====
+const talk = { active:false, history:[], startedAt:0, busy:false, review:null };
+renderScenes("sceneChips", paintSceneDesc); paintSceneDesc();
+$("sceneCustom").value = localStorage.getItem("ek-scene-custom") || "";
+$("sceneCustom").oninput = () => localStorage.setItem("ek-scene-custom", $("sceneCustom").value);
+
+function setTalkStatus(t) { $("talkStatus").textContent = t; }
+function talkBusy(b, msg="") { talk.busy = b; $("talkMic").classList.toggle("busy", b); $("talkSend").disabled = b; $("hintBtn").disabled = b; setTalkStatus(msg); }
+function addBubble(m) {
+  const d = document.createElement("div");
+  if (m.role === "ai") {
+    d.className = "bub ai";
+    d.innerHTML = `<div>${esc(m.text)}</div><div class="ja ${S.showJa?"":"hidden"}">${esc(m.ja||"")}</div>
+      <div class="tools"><button data-a="say">🔊</button><button data-a="slow">🐢</button><button data-a="ja">訳</button><button data-a="save">＋保存</button></div>`;
+    d.querySelector('[data-a="say"]').onclick = () => speak(m.text);
+    d.querySelector('[data-a="slow"]').onclick = () => speak(m.text, S.slow);
+    d.querySelector('[data-a="ja"]').onclick = () => d.querySelector(".ja").classList.toggle("hidden");
+    d.querySelector('[data-a="save"]').onclick = e => savePhrase({ en:m.text, ja:m.ja, scene:talk.scene }, e.target);
+  } else if (m.role === "hint") {
+    d.className = "bub hintb";
+    d.innerHTML = `💡 ${esc(m.ja)}<div style="margin-top:6px">${m.examples.map(x=>`<div class="row" style="margin-top:4px"><span class="grow">“${esc(x)}”</span><button class="sm" data-x="${esc(x)}">🔊</button></div>`).join("")}</div>`;
+    d.querySelectorAll("[data-x]").forEach(b => b.onclick = () => speak(b.dataset.x, S.slow));
+  } else {
+    d.className = "bub me"; d.textContent = m.text;
+  }
+  $("chatLog").appendChild(d); d.scrollIntoView({ behavior:"smooth", block:"end" });
+  setTimeout(() => window.scrollTo({ top:document.body.scrollHeight, behavior:"smooth" }), 50);
+}
+async function aiTurn() {
+  talkBusy(true, "考えています…");
+  try {
+    const d = await api("chat", { scene:talk.sceneText, level:S.level, history:talk.history.filter(m=>m.role!=="hint") });
+    const m = { role:"ai", text:d.en, ja:d.ja }; talk.history.push(m); addBubble(m);
+    talkBusy(false, "マイクを押して話してください");
+    if (S.auto) { setTalkStatus("読み上げ中…（マイクを押すと止まります）"); speak(m.text).finally(() => !talk.busy && !recState && setTalkStatus("マイクを押して話してください")); }
+  } catch (e) { talkBusy(false, ""); toast(e.message, 4000); }
+}
+$("talkStart").onclick = () => {
+  if (sceneId === "custom" && !$("sceneCustom").value.trim()) return toast("場面を書いてください");
+  Object.assign(talk, { active:true, history:[], startedAt:Date.now(), review:null, sceneText:sceneText(), scene:sceneName() });
+  $("chatLog").innerHTML = ""; $("talkTitle").textContent = talk.scene;
+  $("talkSetup").classList.add("hidden"); $("talkReview").classList.add("hidden"); $("talkRoom").classList.remove("hidden");
+  $("talkDock").classList.remove("hidden"); $("talkEnd").classList.remove("hidden");
+  aiTurn();
+};
+async function sendMine(text) {
+  text = text.trim(); if (!text) return;
+  const m = { role:"me", text }; talk.history.push(m); addBubble(m); await aiTurn();
+}
+$("talkMic").onclick = async () => {
+  if (talk.busy) return;
+  if (!recState) {
+    stopAudio();
+    try { await recStart(); } catch { return toast("マイクを使えませんでした。設定でマイクを許可してください", 4000); }
+    $("talkMic").classList.add("on"); setTalkStatus("● 話してください（終わったらもう一度押す）");
+  } else {
+    $("talkMic").classList.remove("on"); talkBusy(true, "聞き取っています…");
+    try {
+      const r = await recStop(); const lastAi = [...talk.history].reverse().find(m=>m.role==="ai")?.text || "";
+      const text = await transcribe(r, lastAi ? `Previous line from the other speaker: "${lastAi}"` : "");
+      talkBusy(false);
+      if (!text) { setTalkStatus("聞き取れませんでした。もう一度どうぞ"); return; }
+      await sendMine(text);
+    } catch (e) { talkBusy(false, ""); toast(e.message, 4000); }
+  }
+};
+$("kbBtn").onclick = () => { $("dockVoice").classList.add("hidden"); $("dockText").classList.remove("hidden"); $("talkText").focus(); };
+$("micBack").onclick = () => { $("dockText").classList.add("hidden"); $("dockVoice").classList.remove("hidden"); };
+$("talkSend").onclick = () => { const t=$("talkText").value; $("talkText").value=""; sendMine(t); };
+$("talkText").onkeydown = e => { if (e.key==="Enter" && !e.isComposing) { e.preventDefault(); $("talkSend").click(); } };
+$("hintBtn").onclick = async () => {
+  const want = prompt("言いたいことを日本語で書くと、英語の言い方を教えます（空欄なら返し方のヒント）", "");
+  if (want === null) return;
+  talkBusy(true, "ヒントを考えています…");
+  try {
+    const d = await api("hint", { scene:talk.sceneText, level:S.level, history:talk.history.filter(m=>m.role!=="hint"), want });
+    const m = { role:"hint", ja:d.ja, examples:d.examples||[] }; talk.history.push(m); addBubble(m);
+  } catch (e) { toast(e.message, 4000); }
+  talkBusy(false, "マイクを押して話してください");
+};
+$("talkEnd").onclick = async () => {
+  if (recState) await recStop();
+  stopAudio();
+  const mine = talk.history.filter(m=>m.role==="me");
+  if (!mine.length) { if (confirm("まだ話していません。会話をやめますか？")) resetTalk(); return; }
+  talkBusy(true, "添削しています…"); $("talkEnd").disabled = true;
+  try {
+    const hist = talk.history.filter(m=>m.role!=="hint");
+    const d = await api("review", { scene:talk.sceneText, level:S.level, history:hist });
+    talk.review = d; talk.active = false;
+    const minutes = Math.max(1, Math.round((Date.now()-talk.startedAt)/60000));
+    await sb.from("ek_sessions").insert({ mode:"conversation", scene:talk.scene, minutes, score:d.score, data:{ history:hist, review:d } });
+    $("talkDock").classList.add("hidden"); $("talkEnd").classList.add("hidden"); $("talkRoom").classList.add("hidden");
+    renderReview($("talkReview"), d, hist, talk.scene, true); $("talkReview").classList.remove("hidden"); window.scrollTo(0,0);
+  } catch (e) { toast(e.message, 4000); }
+  talkBusy(false); $("talkEnd").disabled = false;
+};
+function resetTalk() {
+  talk.active = false; $("talkDock").classList.add("hidden"); $("talkEnd").classList.add("hidden");
+  $("talkRoom").classList.add("hidden"); $("talkReview").classList.add("hidden"); $("talkSetup").classList.remove("hidden");
+  $("talkTitle").textContent = "会話";
+}
+// 添削結果の表示（記録の詳細でも使う）
+function renderReview(box, d, hist, scene, withActions) {
+  box.innerHTML = `
+    <div class="card" style="text-align:center"><div class="hint">目安点</div><div class="big">${d.score ?? "-"}</div></div>
+    <p style="line-height:1.7">${esc(d.overall_ja)}</p>
+    ${d.good_ja?.length ? `<h2>👍 よかったところ</h2>${d.good_ja.map(x=>`<div class="item"><div class="t">${esc(x)}</div></div>`).join("")}` : ""}
+    <h2>✏️ 直すともっと良くなる言い方</h2>
+    ${d.corrections?.length ? d.corrections.map((c,i)=>`<div class="corr"><div class="said">${esc(c.said)}</div><div class="better">→ ${esc(c.better)}</div>
+      <div class="hint">${esc(c.point_ja)}</div><div class="row" style="margin-top:6px"><button class="sm" data-say="${i}">🔊</button><button class="sm" data-addc="${i}">＋フレーズ帳</button></div></div>`).join("")
+      : `<p class="hint">大きな間違いはありませんでした。</p>`}
+    <h2>📒 覚えておきたい表現</h2>
+    ${(d.phrases||[]).map((p,i)=>`<div class="item"><div class="t"><b>${esc(p.en)}</b><small>${esc(p.ja)}${p.note?`　<span class="tag">${esc(p.note)}</span>`:""}</small></div>
+      <button class="sm" data-sayp="${i}">🔊</button><button class="sm" data-addp="${i}">＋</button></div>`).join("")}
+    ${d.phrases?.length ? `<div class="row" style="margin-top:10px"><button class="sm" id="addAllP">まとめてフレーズ帳へ</button></div>` : ""}
+    ${withActions ? `<h2>つづける</h2><div class="row"><button class="primary grow" id="rvShadow">この会話でシャドーイング</button></div>
+      <div class="row" style="margin-top:8px"><button class="grow" id="rvAgain">同じ場面でもう一度</button><button class="grow" id="rvNew">場面を変える</button></div>` : ""}`;
+  box.querySelectorAll("[data-say]").forEach(b => b.onclick = () => speak(d.corrections[+b.dataset.say].better));
+  box.querySelectorAll("[data-addc]").forEach(b => b.onclick = () => { const c=d.corrections[+b.dataset.addc]; savePhrase({ en:c.better, ja:"", note:c.point_ja, scene }, b); });
+  box.querySelectorAll("[data-sayp]").forEach(b => b.onclick = () => speak(d.phrases[+b.dataset.sayp].en));
+  box.querySelectorAll("[data-addp]").forEach(b => b.onclick = () => savePhrase({ ...d.phrases[+b.dataset.addp], scene }, b));
+  const all = box.querySelector("#addAllP");
+  if (all) all.onclick = async () => {
+    all.disabled = true;
+    const rows = d.phrases.map(p => ({ en:p.en, ja:p.ja||"", note:p.note||"", scene }));
+    const { error } = await sb.from("ek_phrases").insert(rows);
+    if (error) { all.disabled=false; return toast("保存できませんでした：" + error.message); }
+    box.querySelectorAll("[data-addp]").forEach(b => { b.textContent="✓"; b.disabled=true; }); toast(`${rows.length}件をフレーズ帳に入れました`);
+  };
+  if (!withActions) return;
+  box.querySelector("#rvShadow").onclick = () => {
+    // AIのセリフと、自分の発言の直した版を順番どおりに並べる
+    const sents = []; const fix = new Map((d.corrections||[]).map(c => [c.said.trim(), c.better]));
+    for (const m of hist) {
+      if (m.role === "ai") splitSent(m.text).forEach((en,i,arr) => sents.push({ en, ja: arr.length===1 ? (m.ja||"") : "" }));
+      else if (fix.has(m.text.trim())) sents.push({ en:fix.get(m.text.trim()), ja:"（自分の発言を直したもの）" });
+    }
+    const mat = { title:`${scene}の会話`, sentences:sents.slice(0,20) }; rememberMat(mat);
+    show("shad"); startShad(mat);
+  };
+  box.querySelector("#rvAgain").onclick = () => { resetTalk(); $("talkStart").click(); };
+  box.querySelector("#rvNew").onclick = resetTalk;
+}
+const splitSent = t => (String(t).match(/[^.!?]+[.!?]+["')]*|[^.!?]+$/g) || [t]).map(s=>s.trim()).filter(s=>s.split(/\s+/).length>=2 || s.length>8);
+
+// ===== フレーズ帳 =====
+async function savePhrase(p, btn) {
+  if (btn) btn.disabled = true;
+  const { error } = await sb.from("ek_phrases").insert({ en:p.en, ja:p.ja||"", note:p.note||"", scene:p.scene||"" });
+  if (error) { if (btn) btn.disabled=false; return toast("保存できませんでした：" + error.message); }
+  if (btn) btn.textContent = "✓"; toast("フレーズ帳に入れました");
+}
+let phrFilter = "due", phrases = [];
+const INTERVAL = [1, 2, 4, 7, 15, 30, 60];
+async function loadPhrases() {
+  const { data, error } = await sb.from("ek_phrases").select("*").order("created_at", { ascending:false }).limit(1000);
+  if (error) { toast(error.message); return []; } phrases = data; return data;
+}
+async function renderPhrases() {
+  $("phrCard").classList.add("hidden"); $("phrHome").classList.remove("hidden");
+  await loadPhrases();
+  const due = phrases.filter(p => p.next_review <= today());
+  $("phrDueN").textContent = due.length; $("phrReview").disabled = !due.length;
+  const list = phrFilter === "due" ? due : phrases;
+  $("phrList").innerHTML = list.length ? list.map(p => `<div class="item"><div class="t"><b>${esc(p.en)}</b><small>${esc(p.ja)}${p.note?`<br>${esc(p.note)}`:""}</small>
+      <small>${p.scene?`<span class="tag">${esc(p.scene)}</span> `:""}<span class="tag ${p.box>=4?"ok":""}">覚え度 ${p.box}</span> 次回 ${p.next_review.slice(5).replace("-","/")}</small></div>
+      <button class="sm" data-say="${p.id}">🔊</button><button class="sm" data-del="${p.id}">🗑</button></div>`).join("")
+    : `<p class="hint" style="margin-top:16px">${phrFilter==="due" ? "今日の復習はありません。" : "まだフレーズがありません。会話の添削や練習から＋で追加できます。"}</p>`;
+  $("phrList").querySelectorAll("[data-say]").forEach(b => b.onclick = () => speak(phrases.find(p=>p.id===b.dataset.say).en));
+  $("phrList").querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    if (!confirm("このフレーズを削除しますか？")) return;
+    await sb.from("ek_phrases").delete().eq("id", b.dataset.del); renderPhrases();
+  });
+}
+document.querySelectorAll("#phrFilter button").forEach(b => b.onclick = () => {
+  phrFilter = b.dataset.f; document.querySelectorAll("#phrFilter button").forEach(x => x.classList.toggle("on", x===b)); renderPhrases();
+});
+$("phrAdd").onclick = () => { $("aEn").value=""; $("aJa").value=""; $("aNote").value=""; $("addDlg").showModal(); };
+$("aClose").onclick = () => $("addDlg").close();
+$("aSave").onclick = async () => {
+  if (!$("aEn").value.trim()) return toast("英語を入れてください");
+  await savePhrase({ en:$("aEn").value.trim(), ja:$("aJa").value.trim(), note:$("aNote").value.trim() }); $("addDlg").close(); renderPhrases();
+};
+$("phrToDict").onclick = async () => {
+  await loadPhrases();
+  const due = phrases.filter(p => p.next_review <= today()); const src = (due.length >= 3 ? due : phrases).slice(0, 12);
+  if (!src.length) return toast("フレーズがまだありません");
+  show("dict"); startDict({ title:"フレーズ帳から", sentences:src.map(p=>({ en:p.en, ja:p.ja })) });
+};
+// 復習（日本語を見て英語を思い出す → 答え → 覚えた／まだ）
+let rv = null;
+$("phrReview").onclick = () => {
+  const due = phrases.filter(p => p.next_review <= today()).sort(() => Math.random() - .5);
+  rv = { list:due, i:0, ok:0, at:Date.now() }; $("phrHome").classList.add("hidden"); $("phrCard").classList.remove("hidden"); paintCard();
+};
+function paintCard() {
+  const p = rv.list[rv.i];
+  if (!p) {
+    $("phrCard").innerHTML = `<div class="flash"><div class="big">${rv.ok}/${rv.list.length}</div><p>復習おわり！</p><button class="primary" id="rvBack">もどる</button></div>`;
+    $("rvBack").onclick = renderPhrases;
+    sb.from("ek_sessions").insert({ mode:"phrases", scene:"フレーズ帳", minutes:Math.max(1,Math.round((Date.now()-rv.at)/60000)), score:Math.round(rv.ok/rv.list.length*100), data:{ count:rv.list.length, ok:rv.ok } });
+    return;
+  }
+  $("phrCard").innerHTML = `<div class="hint">${rv.i+1} / ${rv.list.length}</div>
+    <div class="flash"><div class="q">${esc(p.ja || "（日本語なし）英語を聞いて言ってみよう")}</div>${p.note?`<div class="hint">${esc(p.note)}</div>`:""}
+    <div class="a hidden" id="cA">${esc(p.en)}</div></div>
+    <div class="row c" id="cAsk"><button class="primary" id="cShow" style="padding:12px 28px">答えを見る</button>${p.ja?"":`<button id="cHear">🔊 聞く</button>`}</div>
+    <div class="row c hidden" id="cJudge"><button id="cSay">🔊</button><button id="cNg" style="padding:12px 20px">まだ</button><button class="primary" id="cOk" style="padding:12px 20px">覚えた</button></div>
+    <div class="row c" style="margin-top:20px"><button class="sm" id="cQuit">やめる</button></div>`;
+  $("cShow").onclick = () => { $("cA").classList.remove("hidden"); $("cAsk").classList.add("hidden"); $("cJudge").classList.remove("hidden"); speak(p.en); };
+  if ($("cHear")) $("cHear").onclick = () => speak(p.en);
+  $("cSay").onclick = () => speak(p.en);
+  const judge = async ok => {
+    const box = ok ? Math.min(p.box + 1, INTERVAL.length - 1) : 0;
+    const next = addDays(today(), ok ? INTERVAL[box] : 1);
+    if (ok) rv.ok++; rv.i++; paintCard();
+    await sb.from("ek_phrases").update({ box, next_review:next }).eq("id", p.id);
+  };
+  $("cOk").onclick = () => judge(true); $("cNg").onclick = () => judge(false);
+  $("cQuit").onclick = renderPhrases;
+}
+
+// ===== 教材えらび（ディクテーション・シャドーイング共通） =====
+const recentMats = () => { try { return JSON.parse(localStorage.getItem("ek-mats") || "[]"); } catch { return []; } };
+function rememberMat(m) {
+  const list = recentMats().filter(x => x.title !== m.title || x.sentences[0]?.en !== m.sentences[0]?.en);
+  list.unshift({ ...m, at:Date.now() }); localStorage.setItem("ek-mats", JSON.stringify(list.slice(0, 15)));
+}
+function renderPicker(boxId, onStart) {
+  const box = $(boxId), rec = recentMats();
+  box.innerHTML = `
+    <h2>AIで教材をつくる</h2>
+    <div class="chips" id="${boxId}-sc"></div>
+    <div class="row" style="margin-top:12px">
+      <div class="seg2" id="${boxId}-st"><button data-s="dialogue" class="on">会話文</button><button data-s="monologue">ひとり語り</button></div>
+      <span class="grow"></span>
+      <select id="${boxId}-n" style="width:auto"><option value="4">4文</option><option value="6" selected>6文</option><option value="8">8文</option><option value="10">10文</option></select>
+    </div>
+    <div class="row" style="margin-top:12px"><button class="primary grow" id="${boxId}-gen" style="padding:12px">つくって始める</button></div>
+    <h2>英文を貼りつける</h2>
+    <textarea id="${boxId}-txt" placeholder="練習したい英文（製品説明・論文の要旨・ニュースなど）"></textarea>
+    <div class="row" style="margin-top:8px"><span class="grow"></span><button id="${boxId}-use">この英文で始める</button></div>
+    ${rec.length ? `<h2>最近の教材</h2>${rec.map((m,i)=>`<div class="item"><div class="t"><b>${esc(m.title)}</b><small>${m.sentences.length}文　${esc(m.sentences[0]?.en||"")}</small></div><button class="sm" data-i="${i}">始める</button></div>`).join("")}` : ""}`;
+  let style = "dialogue";
+  renderScenes(`${boxId}-sc`);
+  // 「自分で決める」は会話タブの入力欄を使う
+  box.querySelectorAll(`#${boxId}-st button`).forEach(b => b.onclick = () => { style=b.dataset.s; box.querySelectorAll(`#${boxId}-st button`).forEach(x=>x.classList.toggle("on",x===b)); });
+  const gen = async (text) => {
+    const btn = text ? $(`${boxId}-use`) : $(`${boxId}-gen`); btn.disabled = true; const label = btn.textContent; btn.textContent = "つくっています…";
+    try {
+      const d = await api("material", { scene:sceneText(), level:S.level, count:+$(`${boxId}-n`).value, style, text:text||"" });
+      if (!d.sentences?.length) throw new Error("英文をつくれませんでした");
+      const mat = { title: text ? (d.title || "貼りつけた英文") : `${sceneName()}（${d.title||""}）`, sentences:d.sentences };
+      rememberMat(mat); onStart(mat);
+    } catch (e) { toast(e.message, 4000); }
+    btn.disabled = false; btn.textContent = label;
+  };
+  $(`${boxId}-gen`).onclick = () => { if (sceneId==="custom" && !$("sceneCustom").value.trim()) return toast("「自分で決める」は会話タブで場面を書いてください", 4000); gen(""); };
+  $(`${boxId}-use`).onclick = () => { const t=$(`${boxId}-txt`).value.trim(); if (!t) return toast("英文を貼りつけてください"); gen(t); };
+  box.querySelectorAll("[data-i]").forEach(b => b.onclick = () => onStart(rec[+b.dataset.i]));
+}
+
+// ===== ディクテーション =====
+const dict = { mat:null, i:0, plays:0, results:[], at:0, hintLv:0 };
+function startDict(mat) {
+  Object.assign(dict, { mat, i:0, results:[], at:Date.now() });
+  $("dictPick").classList.add("hidden"); $("dictDone").classList.add("hidden"); $("dictRun").classList.remove("hidden"); $("dictQuit").classList.remove("hidden");
+  $("dictTitle").textContent = mat.title; paintDict(); setTimeout(() => $("dPlay").click(), 300);
+}
+function paintDict() {
+  const s = dict.mat.sentences[dict.i]; dict.plays = 0; dict.hintLv = 0;
+  $("dictPos").textContent = `${dict.i+1} / ${dict.mat.sentences.length}`;
+  $("dictBar").style.width = (dict.i / dict.mat.sentences.length * 100) + "%";
+  $("dInput").value = ""; $("dHintText").textContent = ""; $("dCount").textContent = "";
+  $("dInputBox").classList.remove("hidden"); $("dResult").classList.add("hidden");
+  ttsUrl(s.en).catch(()=>{}); const nx = dict.mat.sentences[dict.i+1]; if (nx) ttsUrl(nx.en).catch(()=>{}); // 先に用意しておく
+}
+const dPlayAt = async rate => { dict.plays++; $("dCount").textContent = `再生 ${dict.plays} 回`; await speak(dict.mat.sentences[dict.i].en, rate); };
+$("dPlay").onclick = () => dPlayAt(1);
+$("dSlow").onclick = () => dPlayAt(S.slow);
+$("dHint").onclick = () => {
+  const words = dict.mat.sentences[dict.i].en.split(/\s+/); dict.hintLv++;
+  $("dHintText").textContent = words.map(w => { const m = w.match(/^([^A-Za-z0-9]*)([A-Za-z0-9])(.*?)([^A-Za-z0-9']*)$/); if (!m) return w;
+    const keep = dict.hintLv >= 2 ? Math.ceil((m[2]+m[3]).length/2) : 1; const body = m[2]+m[3];
+    return m[1] + body.slice(0,keep) + body.slice(keep).replace(/[A-Za-z0-9]/g,"_") + m[4]; }).join(" ");
+};
+$("dCheck").onclick = () => {
+  const s = dict.mat.sentences[dict.i], ans = $("dInput").value;
+  if (!ans.trim() && !confirm("何も書いていません。答えを見ますか？")) return;
+  const c = compare(s.en, ans); dict.results.push({ en:s.en, ans, score:c.score, plays:dict.plays });
+  $("dInputBox").classList.add("hidden"); $("dResult").classList.remove("hidden");
+  const last = dict.i >= dict.mat.sentences.length - 1;
+  $("dResult").innerHTML = `<div class="row"><span class="big" style="font-size:30px">${c.score}%</span><span class="grow"></span><span class="tag">再生 ${dict.plays} 回</span></div>
+    <div class="diff" style="margin-top:6px">${c.html}</div>
+    <div class="hint" style="margin-top:4px">緑＝聞き取れた　<span style="color:var(--red)">赤＝聞き逃し</span>　<s>灰色</s>＝余分</div>
+    <p class="ja2">${esc(s.ja)}</p>
+    <div class="row"><button class="sm" id="drSay">🔊 もう一度</button><button class="sm" id="drSlow">🐢</button><button class="sm" id="drAdd">＋フレーズ帳</button><span class="grow"></span>
+      <button class="primary" id="drNext">${last ? "結果を見る" : "次へ"}</button></div>`;
+  $("drSay").onclick = () => speak(s.en); $("drSlow").onclick = () => speak(s.en, S.slow);
+  $("drAdd").onclick = e => savePhrase({ en:s.en, ja:s.ja, scene:dict.mat.title }, e.target);
+  $("drNext").onclick = () => { if (last) return finishDict(); dict.i++; paintDict(); setTimeout(() => $("dPlay").click(), 200); };
+};
+async function finishDict() {
+  stopAudio(); const r = dict.results, avg = Math.round(r.reduce((a,x)=>a+x.score,0)/r.length);
+  $("dictRun").classList.add("hidden"); $("dictQuit").classList.add("hidden"); $("dictDone").classList.remove("hidden");
+  $("dictDone").innerHTML = `<div class="card" style="text-align:center"><div class="hint">平均</div><div class="big">${avg}%</div><div class="hint">${esc(dict.mat.title)}</div></div>
+    ${r.map(x=>`<div class="item"><div class="t"><b>${esc(x.en)}</b><small>${esc(x.ans||"（未記入）")}</small></div><span class="tag ${x.score>=90?"ok":x.score<60?"ng":""}">${x.score}%</span></div>`).join("")}
+    <div class="row" style="margin-top:16px"><button class="grow" id="ddAgain">もう一度</button><button class="grow" id="ddShad">この教材でシャドーイング</button></div>
+    <div class="row" style="margin-top:8px"><button class="primary grow" id="ddNew">ほかの教材</button></div>`;
+  $("ddAgain").onclick = () => startDict(dict.mat);
+  $("ddShad").onclick = () => { const m = dict.mat; show("shad"); startShad(m); };
+  $("ddNew").onclick = () => { dict.mat = null; $("dictDone").classList.add("hidden"); $("dictPick").classList.remove("hidden"); renderPicker("dictPick", startDict); };
+  await sb.from("ek_sessions").insert({ mode:"dictation", scene:dict.mat.title, minutes:Math.max(1,Math.round((Date.now()-dict.at)/60000)), score:avg, data:{ results:r } });
+}
+$("dictQuit").onclick = () => {
+  if (dict.results.length && confirm("ここまでの結果を記録して終わりますか？")) return finishDict();
+  stopAudio(); dict.mat = null; $("dictRun").classList.add("hidden"); $("dictQuit").classList.add("hidden"); $("dictPick").classList.remove("hidden"); renderPicker("dictPick", startDict);
+};
+
+// ===== シャドーイング =====
+const shad = { mat:null, i:0, mode:"repeat", results:[], at:0, running:false, myRec:null };
+function startShad(mat) {
+  Object.assign(shad, { mat, i:0, results:[], at:Date.now() });
+  $("shadPick").classList.add("hidden"); $("shadDone").classList.add("hidden"); $("shadRun").classList.remove("hidden"); $("shadQuit").classList.remove("hidden");
+  $("shadTitle").textContent = mat.title; paintShad();
+}
+function paintShadMode() {
+  document.querySelectorAll("#shadMode button").forEach(b => b.classList.toggle("on", b.dataset.m === shad.mode));
+  $("shadModeHint").textContent = shad.mode === "repeat"
+    ? "お手本を聞いたあとに、まねして言います（終わったらボタンを押す）。"
+    : "お手本と同時に、少し遅れて追いかけて言います。イヤホンを使うと正確に採点できます。";
+}
+function paintShad() {
+  const s = shad.mat.sentences[shad.i];
+  $("shadPos").textContent = `${shad.i+1} / ${shad.mat.sentences.length}`;
+  $("shadBar").style.width = (shad.i / shad.mat.sentences.length * 100) + "%";
+  $("sEn").textContent = s.en; $("sJa").textContent = s.ja || "";
+  $("sEn").classList.toggle("blur", $("shadHide").checked);
+  $("sResult").classList.add("hidden"); $("sStatus").textContent = "押すとはじまります"; $("sGo").classList.remove("on","busy");
+  paintShadMode();
+  ttsUrl(s.en).catch(()=>{}); const nx = shad.mat.sentences[shad.i+1]; if (nx) ttsUrl(nx.en).catch(()=>{});
+}
+document.querySelectorAll("#shadMode button").forEach(b => b.onclick = () => { shad.mode = b.dataset.m; paintShadMode(); });
+$("shadHide").onchange = () => $("sEn").classList.toggle("blur", $("shadHide").checked);
+$("sEn").onclick = () => $("sEn").classList.remove("blur");
+$("sListen").onclick = () => speak(shad.mat.sentences[shad.i].en);
+$("sSlow").onclick = () => speak(shad.mat.sentences[shad.i].en, S.slow);
+$("sGo").onclick = async () => {
+  const s = shad.mat.sentences[shad.i];
+  if (shad.running === "recording") { shad.running = "stopping"; return finishShadTake(); }
+  if (shad.running) return;
+  shad.running = "starting"; $("sResult").classList.add("hidden");
+  try {
+    if (shad.mode === "repeat") {
+      $("sStatus").textContent = "🔊 お手本を聞いてください…"; $("sGo").classList.add("busy");
+      await speak(s.en);
+      await recStart(); $("sGo").classList.remove("busy"); $("sGo").classList.add("on");
+      shad.running = "recording"; $("sStatus").textContent = "● まねして言ってください（終わったら押す）";
+    } else {
+      await recStart(); $("sGo").classList.add("on"); shad.running = "recording";
+      $("sStatus").textContent = "● お手本を追いかけて言ってください";
+      await speak(s.en);
+      if (shad.running !== "recording") return;
+      $("sStatus").textContent = "● 言い終わったら押してください（自動で止まります）";
+      setTimeout(() => { if (shad.running === "recording") { shad.running = "stopping"; finishShadTake(); } }, 1800);
+    }
+  } catch (e) { shad.running = false; $("sGo").classList.remove("on","busy"); await recStop(); toast(e.message?.includes("Permission")||e.name==="NotAllowedError" ? "マイクを許可してください" : e.message, 4000); }
+};
+async function finishShadTake() {
+  const s = shad.mat.sentences[shad.i];
+  $("sGo").classList.remove("on"); $("sGo").classList.add("busy"); $("sStatus").textContent = "聞き取っています…";
+  try {
+    const r = await recStop(); shad.myRec = r?.blob;
+    const text = await transcribe(r);
+    const c = compare(s.en, text);
+    shad.results[shad.i] = { en:s.en, said:text, score:c.score, mode:shad.mode };
+    const last = shad.i >= shad.mat.sentences.length - 1;
+    $("sResult").innerHTML = `<div class="row"><span class="big" style="font-size:30px">${c.score}%</span><span class="grow"></span><span class="tag b">${shad.mode==="repeat"?"リピート":"シャドーイング"}</span></div>
+      <div class="diff">${c.html}</div>
+      <div class="hint" style="margin-top:4px">聞き取られた英語：${esc(text || "（聞き取れませんでした）")}</div>
+      <div class="hint">${c.score>=90 ? "とても良いです！" : c.score>=70 ? "あと少し。赤い単語を意識してもう一度。" : "ゆっくりで聞いてから、もう一度やってみましょう。"}</div>
+      <div class="row" style="margin-top:10px"><button class="sm" id="srMine">🎧 自分の声</button><button class="sm" id="srModel">🔊 お手本</button><button class="sm" id="srAdd">＋</button>
+        <span class="grow"></span><button class="sm" id="srRetry">もう一度</button><button class="primary" id="srNext">${last?"結果を見る":"次へ"}</button></div>`;
+    $("sResult").classList.remove("hidden"); $("sEn").classList.remove("blur");
+    $("srMine").onclick = () => shad.myRec && playBlob(shad.myRec);
+    $("srModel").onclick = () => speak(s.en);
+    $("srAdd").onclick = e => savePhrase({ en:s.en, ja:s.ja, scene:shad.mat.title }, e.target);
+    $("srRetry").onclick = () => { paintShad(); };
+    $("srNext").onclick = () => { if (last) return finishShad(); shad.i++; paintShad(); };
+    $("sStatus").textContent = "";
+  } catch (e) { toast(e.message, 4000); $("sStatus").textContent = "押すとはじまります"; }
+  $("sGo").classList.remove("busy"); shad.running = false;
+}
+async function finishShad() {
+  stopAudio(); const r = shad.results.filter(Boolean);
+  const avg = r.length ? Math.round(r.reduce((a,x)=>a+x.score,0)/r.length) : 0;
+  $("shadRun").classList.add("hidden"); $("shadQuit").classList.add("hidden"); $("shadDone").classList.remove("hidden");
+  $("shadDone").innerHTML = `<div class="card" style="text-align:center"><div class="hint">平均</div><div class="big">${avg}%</div><div class="hint">${esc(shad.mat.title)}</div></div>
+    ${r.map(x=>`<div class="item"><div class="t"><b>${esc(x.en)}</b><small>${esc(x.said||"（聞き取れず）")}</small></div><span class="tag ${x.score>=90?"ok":x.score<60?"ng":""}">${x.score}%</span></div>`).join("")}
+    <div class="row" style="margin-top:16px"><button class="grow" id="sdAgain">もう一度</button><button class="primary grow" id="sdNew">ほかの教材</button></div>`;
+  $("sdAgain").onclick = () => startShad(shad.mat);
+  $("sdNew").onclick = () => { shad.mat = null; $("shadDone").classList.add("hidden"); $("shadPick").classList.remove("hidden"); renderPicker("shadPick", startShad); };
+  if (r.length) await sb.from("ek_sessions").insert({ mode:"shadowing", scene:shad.mat.title, minutes:Math.max(1,Math.round((Date.now()-shad.at)/60000)), score:avg, data:{ results:r } });
+}
+$("shadQuit").onclick = async () => {
+  if (recState) await recStop(); shad.running = false;
+  if (shad.results.filter(Boolean).length && confirm("ここまでの結果を記録して終わりますか？")) return finishShad();
+  stopAudio(); shad.mat = null; $("shadRun").classList.add("hidden"); $("shadQuit").classList.add("hidden"); $("shadPick").classList.remove("hidden"); renderPicker("shadPick", startShad);
+};
+
+// ===== 記録 =====
+const MODE_JA = { conversation:"💬 会話", dictation:"✍︎ 聞き取り", shadowing:"🗣 シャドー", phrases:"📒 復習" };
+async function renderLog() {
+  const since = addDays(today(), -7*12 - 7);
+  const { data, error } = await sb.from("ek_sessions").select("id,created_at,mode,scene,minutes,score").gte("created_at", since + "T00:00:00").order("created_at", { ascending:false });
+  if (error) return toast(error.message);
+  const { count } = await sb.from("ek_sessions").select("id", { count:"exact", head:true });
+  const byDay = {}; for (const s of data) { const k = dayOf(s.created_at); byDay[k] = (byDay[k]||0) + 1; }
+  // 連続日数（今日まだなら昨日から数える）
+  let d = today(), streak = 0; if (!byDay[d]) d = addDays(d, -1);
+  while (byDay[d]) { streak++; d = addDays(d, -1); }
+  const now = new Date(), mon = addDays(today(), -((now.getDay()+6)%7));
+  let week = 0; for (let i=0;i<7;i++) if (byDay[addDays(mon,i)]) week++;
+  $("stStreak").textContent = streak; $("stWeek").textContent = week; $("stTotal").textContent = count ?? data.length;
+  // 12週間のカレンダー（月曜はじまり）
+  const start = addDays(mon, -7*11); let cells = "";
+  for (let i=0;i<84;i++) { const k = addDays(start,i); const n = byDay[k]||0; const future = k > today();
+    cells += `<i class="${n>=3?"l3":n==2?"l2":n==1?"l1":""} ${k===today()?"today":""}" style="${future?"opacity:.25":""}" title="${k}"></i>`; }
+  $("heat").innerHTML = cells;
+  $("logList").innerHTML = data.length ? data.slice(0,40).map(s => `<div class="item" data-id="${s.id}"><div class="t"><b>${MODE_JA[s.mode]}　${esc(s.scene||"")}</b>
+      <small>${new Date(s.created_at).toLocaleString("ja-JP",{month:"numeric",day:"numeric",hour:"2-digit",minute:"2-digit"})}・${s.minutes??"-"}分</small></div>
+      ${s.score!=null?`<span class="tag ${s.score>=85?"ok":""}">${Math.round(s.score)}${s.mode==="conversation"?"点":"%"}</span>`:""}</div>`).join("")
+    : `<p class="hint">まだ記録がありません。</p>`;
+  $("logList").querySelectorAll("[data-id]").forEach(el => el.onclick = () => openLog(el.dataset.id));
+}
+async function openLog(id) {
+  const { data:s } = await sb.from("ek_sessions").select("*").eq("id", id).single(); if (!s) return;
+  const b = $("logBody");
+  const head = `<div class="row"><h3 class="grow">${MODE_JA[s.mode]}　${esc(s.scene||"")}</h3><button class="sm" id="lgClose">閉じる</button></div>
+    <p class="hint">${new Date(s.created_at).toLocaleString("ja-JP")}</p>`;
+  if (s.mode === "conversation" && s.data?.review) {
+    b.innerHTML = head + `<div id="lgRv"></div><h2>会話の記録</h2>` + (s.data.history||[]).map(m => `<div class="item"><div class="t"><small>${m.role==="ai"?"相手":"自分"}</small><b style="font-weight:${m.role==="ai"?400:600}">${esc(m.text)}</b></div></div>`).join("");
+    renderReview(b.querySelector("#lgRv"), s.data.review, s.data.history, s.scene, false);
+  } else if (s.data?.results) {
+    b.innerHTML = head + s.data.results.map(x=>`<div class="item"><div class="t"><b>${esc(x.en)}</b><small>${esc(x.ans ?? x.said ?? "")}</small></div><span class="tag">${x.score}%</span></div>`).join("")
+      + `<div class="row" style="margin-top:12px"><button class="grow" id="lgDict">聞き取りでやり直す</button><button class="grow" id="lgShad">シャドーイング</button></div>`;
+    const mat = { title:s.scene || "前回の教材", sentences:s.data.results.map(x=>({ en:x.en, ja:"" })) };
+    $("lgDict").onclick = () => { $("logDlg").close(); show("dict"); startDict(mat); };
+    $("lgShad").onclick = () => { $("logDlg").close(); show("shad"); startShad(mat); };
+  } else b.innerHTML = head + `<p>${s.score!=null?`正解率 ${s.score}%`:""}</p>`;
+  $("lgClose").onclick = () => $("logDlg").close();
+  $("logDlg").showModal();
+}
+
+// ===== ログイン・起動 =====
+$("loginForm").onsubmit = async e => {
+  e.preventDefault(); $("lBtn").disabled = true; $("lMsg").textContent = "";
+  const { error } = await sb.auth.signInWithPassword({ email:$("lEmail").value.trim(), password:$("lPass").value });
+  $("lBtn").disabled = false;
+  if (error) { $("lMsg").textContent = "ログインできませんでした：" + error.message; return; }
+  $("lPass").value = ""; show("talk"); loadRate();
+};
+document.addEventListener("visibilitychange", () => { if (document.hidden && recState) recStop(); });
+(async () => { const t = await token(); show(t ? "talk" : "login"); if (t) loadRate(); })();
+</script>
+</body>
+</html>
