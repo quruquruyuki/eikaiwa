@@ -47,6 +47,7 @@
   .seg2 { display:inline-flex; background:var(--soft); border-radius:9px; padding:3px; }
   .seg2 button { border:none; border-radius:7px; padding:6px 14px; color:var(--sub); font-size:14px; }
   .seg2 button.on { background:#fff; color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.12); font-weight:600; }
+  .seg2.lv { display:flex; } .seg2.lv button { flex:1; padding:7px 4px; }
   .tag { font-size:12px; padding:2px 8px; border-radius:4px; background:var(--soft); color:var(--sub); white-space:nowrap; }
   .tag.ok { background:var(--okbg); color:#2b593f; } .tag.ng { background:var(--ngbg); color:#5d1715; } .tag.b { background:var(--bluebg); color:#1f5aa6; }
 
@@ -134,12 +135,14 @@
   <main>
     <div id="talkSetup">
       <h2>場面をえらぶ</h2>
-      <div class="chips" id="sceneChips"></div>
+      <div class="chips" id="sceneChips" data-scenebox></div>
       <div id="sceneCustomBox" class="hidden">
         <label>どんな場面？（日本語でOK）</label>
         <textarea id="sceneCustom" placeholder="例：海外の学会でポスター発表を見に来た医師に、研究内容を説明する"></textarea>
       </div>
       <p class="hint" id="sceneDesc" style="margin-top:10px"></p>
+      <h2>レベル</h2>
+      <div id="talkLevel" data-levelbox></div>
       <div class="row" style="margin-top:14px"><button id="talkStart" class="primary grow" style="padding:12px">会話をはじめる</button></div>
       <p class="hint">マイクのボタンを押して話し、もう一度押すと送信されます。会話中は直さず、終わったあとにまとめて添削します。</p>
     </div>
@@ -269,9 +272,7 @@
 <!-- 設定 -->
 <dialog id="settings"><div class="dlg">
   <h3>設定</h3>
-  <label>レベル</label>
-  <select id="sLevel"><option value="beginner">初級（やさしい英語）</option><option value="intermediate">中級</option><option value="advanced">上級（ネイティブに近い）</option></select>
-  <label>読み上げの声</label>
+    <label>読み上げの声</label>
   <select id="sVoice">
     <option value="alloy">alloy（落ち着いた声）</option><option value="nova">nova（明るい女性）</option><option value="shimmer">shimmer（やわらかい女性）</option>
     <option value="coral">coral（女性）</option><option value="sage">sage（女性）</option><option value="echo">echo（男性）</option>
@@ -317,7 +318,7 @@ const dayOf = iso => { const d=new Date(iso); return `${d.getFullYear()}-${Strin
 const addDays = (ymd, n) => { const d=new Date(ymd+"T00:00:00"); d.setDate(d.getDate()+n); return dayOf(d); };
 async function token() { const { data } = await sb.auth.getSession(); return data.session?.access_token; }
 
-const DEF = { level:"intermediate", voice:"alloy", slow:0.7, auto:true, showJa:false };
+const DEF = { level:"b1", voice:"alloy", slow:0.7, auto:true, showJa:false };
 let S = { ...DEF, ...JSON.parse(localStorage.getItem("ek-settings") || "{}") };
 
 // 料金の目安（今月分を端末に記録）
@@ -485,47 +486,125 @@ document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => show(b.
 
 // ===== 設定 =====
 document.querySelectorAll("[data-settings]").forEach(b => b.onclick = () => {
-  $("sLevel").value=S.level; $("sVoice").value=S.voice; $("sSlowRate").value=String(S.slow); $("sAuto").checked=S.auto; $("sShowJa").checked=S.showJa;
+  $("sVoice").value=S.voice; $("sSlowRate").value=String(S.slow); $("sAuto").checked=S.auto; $("sShowJa").checked=S.showJa;
   const usd = +localStorage.getItem("ek-cost-" + today().slice(0,7)) || 0;
   $("sCost").textContent = `今月のAI利用の目安：約${Math.round(usd*RATE)}円（この端末の分。読み上げは含みません）`;
   $("settings").showModal(); document.activeElement?.blur?.();
 });
 $("sClose").onclick = () => $("settings").close();
 $("sSave").onclick = () => {
-  S = { ...S, level:$("sLevel").value, voice:$("sVoice").value, slow:+$("sSlowRate").value, auto:$("sAuto").checked, showJa:$("sShowJa").checked };
+  S = { ...S, voice:$("sVoice").value, slow:+$("sSlowRate").value, auto:$("sAuto").checked, showJa:$("sShowJa").checked };
   localStorage.setItem("ek-settings", JSON.stringify(S)); $("settings").close(); toast("保存しました");
 };
 $("sLogout").onclick = async () => { await sb.auth.signOut(); $("settings").close(); show("login"); };
 
+// ===== レベル =====
+const LEVELS = [
+  { id:"a1", label:"入門", desc:"英検3級・TOEIC 〜300点くらい。中学1〜2年の単語、短い文、とてもゆっくり" },
+  { id:"a2", label:"初級", desc:"英検準2級・TOEIC 300〜450点くらい。簡単な日常会話" },
+  { id:"a2p", label:"初中級", desc:"TOEIC 450〜550点くらい。身近な話題を短い文で" },
+  { id:"b1", label:"中級", desc:"英検2級・TOEIC 550〜700点くらい。日常の話題ならだいたい話せる" },
+  { id:"b1p", label:"中級＋", desc:"TOEIC 700〜800点くらい。少し長い文や言い換えも使う" },
+  { id:"b2", label:"中上級", desc:"英検準1級・TOEIC 800〜900点くらい。仕事の話もできる" },
+  { id:"c1", label:"上級", desc:"英検1級・TOEIC 900点以上。自然な速さ、慣用句も使う" },
+  { id:"c2", label:"ネイティブ", desc:"手加減なし。ネイティブ同士と同じ速さ・言い回し" },
+];
+const OLD_LV = { starter:"a1", beginner:"a2", intermediate:"b1", upper:"b2", advanced:"c1" };
+if (OLD_LV[S.level]) S.level = OLD_LV[S.level];
+if (!LEVELS.some(l => l.id === S.level)) S.level = "b1";
+// 画面のあちこちに置くレベル切り替え（どこで変えても全体に反映）
+function renderLevel(boxId) {
+  const box = $(boxId); if (!box) return;
+  const cur = LEVELS.find(l => l.id === S.level);
+  box.innerHTML = `<div class="chips">${LEVELS.map(l => `<button data-l="${l.id}" class="chip ${l.id===S.level?"on":""}">${l.label}</button>`).join("")}</div>
+    <div class="hint" style="margin-top:4px">${esc(cur?.desc || "")}</div>`;
+  box.querySelectorAll("[data-l]").forEach(b => b.onclick = () => {
+    S.level = b.dataset.l; localStorage.setItem("ek-settings", JSON.stringify(S));
+    document.querySelectorAll("[data-levelbox]").forEach(x => renderLevel(x.id));
+  });
+}
+
 // ===== 場面 =====
 const SCENES = [
-  { id:"conf", label:"🩺 学会で海外の医師と", desc:"学会のコーヒーブレイクで、海外の医師と雑談（研究・学会の感想・お互いの仕事）。",
-    en:"Coffee break at an international medical conference. You are a urologist from the United States. Make small talk with the learner about the conference, sessions, research, and each other's work. The learner is a Japanese medical representative (MR) at a pharmaceutical company that makes Kampo (traditional Japanese herbal) medicines." },
-  { id:"detail", label:"💊 医師に製品を説明", desc:"英語を話す医師に、漢方製剤を説明。効果・エビデンス・副作用・使い方を質問されます。",
-    en:"You are an English-speaking physician working at a hospital in Japan. The learner is a medical representative from a Kampo (traditional Japanese herbal medicine) company who visits you to explain a product. Ask realistic questions about indications, evidence, side effects, interactions, and dosage. Be polite but a little busy." },
-  { id:"intro", label:"🙋 自己紹介・仕事の話", desc:"初対面の人に自己紹介。仕事・住んでいる所・趣味などを話します。",
-    en:"You just met the learner at a networking event. Ask about their job, where they live, their family and hobbies, and share a little about yourself." },
-  { id:"hotel", label:"🏨 ホテル", desc:"海外のホテルでチェックイン・要望・トラブル対応。",
-    en:"You are a front desk clerk at a hotel in San Francisco. The learner is a guest checking in. Handle the check-in, and respond to requests or small problems (room, Wi-Fi, breakfast, late checkout)." },
-  { id:"rest", label:"🍽 レストラン", desc:"海外のレストランで注文・おすすめを聞く・会計。",
-    en:"You are a friendly server at a restaurant in New York. Seat the learner, explain the menu, take their order, recommend dishes and drinks, and handle the check." },
-  { id:"air", label:"✈️ 空港・入国審査", desc:"入国審査や空港のカウンターでのやりとり。",
-    en:"You are an immigration officer at a US airport, then airport staff if the learner needs help. Ask typical questions (purpose of visit, length of stay, where staying)." },
-  { id:"chat", label:"☕ 雑談", desc:"気軽な雑談。週末・最近のこと・好きなことなど。",
-    en:"You are a friendly English-speaking coworker. Have casual small talk about weekends, recent events, food, hobbies, and travel." },
-  { id:"custom", label:"✏️ 自分で決める", desc:"", en:"" },
+  { id:"random", label:"🎲 おまかせ", desc:"旅行・買い物・趣味・日常・仕事など、毎回ちがう場面がランダムに出ます。" },
+  { id:"travel", label:"✈️ 旅行", desc:"空港・ホテル・観光・道をたずねるなど、旅行の場面からランダム。", pool:"travel" },
+  { id:"daily", label:"🏠 日常・雑談", desc:"買い物・食事・趣味・家族・週末の話など、日常の場面からランダム。", pool:"daily" },
+  { id:"work", label:"💼 仕事", desc:"学会・医師への製品説明・会議・自己紹介など、仕事の場面からランダム。", pool:"work" },
+  { id:"custom", label:"✏️ 自分で決める", desc:"" },
 ];
-const sceneLabel = id => (SCENES.find(s=>s.id===id)?.label || "").replace(/^\S+\s/,"");
-let sceneId = localStorage.getItem("ek-scene") || "conf";
-function sceneText() {
-  const s = SCENES.find(x=>x.id===sceneId) || SCENES[0];
-  if (s.id === "custom") return `Role-play this scene (described by the learner in Japanese, play the other person): ${$("sceneCustom").value.trim() || "casual conversation"}`;
-  return s.en;
+// おまかせで出る場面（ja＝画面に出す名前、en＝AIへの説明）
+const POOL = {
+  travel: [
+    ["空港のチェックイン", "You are an airline check-in agent at an international airport. Help the learner check in, handle baggage, and choose a seat."],
+    ["入国審査", "You are an immigration officer at a US airport. Ask typical questions: purpose of visit, length of stay, where they will stay."],
+    ["機内で", "You are a flight attendant on a long-haul flight. Offer meals and drinks and handle small requests."],
+    ["ホテルのチェックイン", "You are a front desk clerk at a hotel in San Francisco. Check the learner in and answer questions about the room, Wi-Fi, and breakfast."],
+    ["ホテルでトラブル", "You are a hotel front desk clerk. The learner calls about a problem in their room (air conditioner, noise, no hot water). Help them."],
+    ["レストランで注文", "You are a friendly server at a restaurant in New York. Explain the menu, take the order, recommend dishes, and handle the check."],
+    ["カフェで注文", "You are a barista at a busy coffee shop in Seattle. Take the learner's order and make small talk."],
+    ["道をたずねる", "You are a local person on the street in London. The learner asks for directions to a famous place. Give directions and chat a little."],
+    ["観光案内所", "You work at a tourist information center in Honolulu. Recommend sights, tours, and how to get around."],
+    ["タクシー・配車", "You are a taxi driver in Sydney. Ask where the learner wants to go and make small talk during the ride."],
+    ["電車・バスの切符", "You work at a train station ticket counter in Europe. Help the learner buy tickets and find the right platform."],
+    ["お土産を買う", "You are a shop clerk at a souvenir shop in Hawaii. Help the learner choose gifts for family and friends."],
+    ["服を買う", "You are a clothing store clerk. Help the learner find the right size and color, and handle returns or try-ons."],
+    ["レンタカー", "You work at a car rental counter at an airport in California. Help the learner rent a car and explain insurance and rules."],
+    ["現地ツアーに参加", "You are a tour guide on a day tour. Chat with the learner, explain sights, and ask where they are from."],
+    ["旅先の病院・薬局", "You are a pharmacist in the United States. The learner (a traveler) has a cold or stomachache and needs medicine. Ask about symptoms."],
+    ["忘れ物・落とし物", "You work at a lost and found office at a train station. The learner lost something. Ask for details."],
+    ["旅先で知り合った人と", "You are a friendly traveler from Canada staying at the same guesthouse. Chat about travel plans and each other's countries."],
+  ],
+  daily: [
+    ["週末の過ごし方", "You are a friendly English-speaking neighbor. Chat about what you both did last weekend and plans for the next one."],
+    ["好きな食べ物・料理", "You are a friend who loves food. Talk about favorite foods, cooking, and restaurants."],
+    ["趣味の話", "You are a new friend. Ask about the learner's hobbies and share yours. Be curious and ask follow-up questions."],
+    ["写真・カメラ", "You are a fellow photography fan. Talk about cameras, favorite places to shoot, and tips."],
+    ["釣り・アウトドア", "You are a friend who enjoys fishing and camping. Talk about outdoor trips, gear, and good spots."],
+    ["家族・子どもの話", "You are a parent you just met at a park. Chat about family, kids, and daily life."],
+    ["スポーツ・運動", "You are a gym buddy. Talk about exercise routines, sports you play or watch, and staying healthy."],
+    ["映画・ドラマ・本", "You are a friend. Talk about movies, TV series, and books you have enjoyed recently."],
+    ["天気と季節", "You are a friendly coworker from abroad. Chat about the weather, seasons in Japan, and seasonal events."],
+    ["日本を紹介する", "You are a visitor to Japan for the first time. Ask the learner about Japanese culture, food, and places to visit."],
+    ["スーパーで買い物", "You are a staff member at a supermarket in the US. Help the learner find items and chat at the checkout."],
+    ["美容院・床屋", "You are a hairdresser. Ask how the learner wants their hair cut and make small talk."],
+    ["病院で症状を伝える", "You are a doctor at a clinic abroad. The learner is a patient. Ask about symptoms and give simple advice."],
+    ["電話で予約する", "You are a receptionist at a restaurant answering the phone. The learner wants to make a reservation."],
+    ["近所の人とあいさつ", "You are a new neighbor who just moved in next door. Introduce yourself and chat."],
+    ["最近のニュース", "You are a friend. Chat casually about something interesting in the news recently (technology, sports, or culture)."],
+    ["夢・これからやりたいこと", "You are a friend over coffee. Talk about goals, dreams, and things you want to try in the future."],
+  ],
+  work: [
+    ["学会で海外の医師と", "Coffee break at an international medical conference. You are a urologist from the United States. Make small talk about the conference, sessions, research, and each other's work. The learner is a Japanese medical representative (MR) at a pharmaceutical company that makes Kampo (traditional Japanese herbal) medicines."],
+    ["医師に製品を説明", "You are an English-speaking physician working at a hospital in Japan. The learner is a medical representative from a Kampo (traditional Japanese herbal medicine) company who visits you to explain a product. Ask realistic questions about indications, evidence, side effects, interactions, and dosage. Be polite but a little busy."],
+    ["漢方とは何か説明する", "You are a doctor from Europe who knows little about Kampo. Ask the learner to explain what Kampo medicine is, how it differs from Western medicine and Chinese medicine, and how it is used in Japan."],
+    ["自己紹介・仕事の話", "You just met the learner at a networking event. Ask about their job, their company, and what they do day to day."],
+    ["オンライン会議", "You are a colleague from the overseas office in an online meeting. Discuss schedules and next steps, and ask the learner to share an update."],
+    ["海外からの来客を案内", "You are a visitor from the company's US office visiting Japan. The learner is showing you around the office and city."],
+    ["懇親会・パーティー", "You are a guest at a company reception after a medical seminar. Make small talk with the learner over drinks."],
+  ],
+};
+const ALL_POOL = [...POOL.travel, ...POOL.daily, ...POOL.work];
+let sceneId = localStorage.getItem("ek-scene") || "random";
+if (!SCENES.some(s => s.id === sceneId)) sceneId = "random";
+let lastPick = "";
+// 選んでいる場面から、今回の場面を決める（おまかせ系は毎回ランダム、直前と同じものは避ける）
+function pickScene() {
+  const s = SCENES.find(x => x.id === sceneId) || SCENES[0];
+  if (s.id === "custom") {
+    const t = $("sceneCustom").value.trim();
+    return { name: t.slice(0, 30) || "自由な場面", text: `Role-play this scene (described by the learner in Japanese, play the other person): ${t || "casual conversation"}` };
+  }
+  const pool = s.pool ? POOL[s.pool] : ALL_POOL;
+  let p; do { p = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && p[0] === lastPick);
+  lastPick = p[0];
+  return { name: p[0], text: p[1] };
 }
-function sceneName() { return sceneId === "custom" ? ($("sceneCustom").value.trim().slice(0,30) || "自由な場面") : sceneLabel(sceneId); }
 function renderScenes(boxId, onPick) {
   $(boxId).innerHTML = SCENES.map(s => `<button class="chip ${s.id===sceneId?"on":""}" data-id="${s.id}">${s.label}</button>`).join("");
-  $(boxId).querySelectorAll(".chip").forEach(b => b.onclick = () => { sceneId = b.dataset.id; localStorage.setItem("ek-scene", sceneId); renderScenes(boxId, onPick); onPick?.(); });
+  $(boxId).querySelectorAll(".chip").forEach(b => b.onclick = () => {
+    sceneId = b.dataset.id; localStorage.setItem("ek-scene", sceneId);
+    document.querySelectorAll("[data-scenebox]").forEach(x => renderScenes(x.id)); paintSceneDesc();
+  });
 }
 function paintSceneDesc() {
   const s = SCENES.find(x=>x.id===sceneId); $("sceneDesc").textContent = s?.desc || "";
@@ -534,7 +613,7 @@ function paintSceneDesc() {
 
 // ===== 会話 =====
 const talk = { active:false, history:[], startedAt:0, busy:false, review:null };
-renderScenes("sceneChips", paintSceneDesc); paintSceneDesc();
+renderScenes("sceneChips"); paintSceneDesc(); renderLevel("talkLevel");
 $("sceneCustom").value = localStorage.getItem("ek-scene-custom") || "";
 $("sceneCustom").oninput = () => localStorage.setItem("ek-scene-custom", $("sceneCustom").value);
 
@@ -571,7 +650,8 @@ async function aiTurn() {
 }
 $("talkStart").onclick = () => {
   if (sceneId === "custom" && !$("sceneCustom").value.trim()) return toast("場面を書いてください");
-  Object.assign(talk, { active:true, history:[], startedAt:Date.now(), review:null, sceneText:sceneText(), scene:sceneName() });
+  const pk = pickScene();
+  Object.assign(talk, { active:true, history:[], startedAt:Date.now(), review:null, sceneText:pk.text, scene:pk.name });
   $("chatLog").innerHTML = ""; $("talkTitle").textContent = talk.scene;
   $("talkSetup").classList.add("hidden"); $("talkReview").classList.add("hidden"); $("talkRoom").classList.remove("hidden");
   $("talkDock").classList.remove("hidden"); $("talkEnd").classList.remove("hidden");
@@ -765,7 +845,8 @@ function renderPicker(boxId, onStart) {
   const box = $(boxId), rec = recentMats();
   box.innerHTML = `
     <h2>AIで教材をつくる</h2>
-    <div class="chips" id="${boxId}-sc"></div>
+    <div class="chips" id="${boxId}-sc" data-scenebox></div>
+    <label>レベル</label><div id="${boxId}-lv" data-levelbox></div>
     <div class="row" style="margin-top:12px">
       <div class="seg2" id="${boxId}-st"><button data-s="dialogue" class="on">会話文</button><button data-s="monologue">ひとり語り</button></div>
       <span class="grow"></span>
@@ -777,15 +858,17 @@ function renderPicker(boxId, onStart) {
     <div class="row" style="margin-top:8px"><span class="grow"></span><button id="${boxId}-use">この英文で始める</button></div>
     ${rec.length ? `<h2>最近の教材</h2>${rec.map((m,i)=>`<div class="item"><div class="t"><b>${esc(m.title)}</b><small>${m.sentences.length}文　${esc(m.sentences[0]?.en||"")}</small></div><button class="sm" data-i="${i}">始める</button></div>`).join("")}` : ""}`;
   let style = "dialogue";
-  renderScenes(`${boxId}-sc`);
+  renderScenes(`${boxId}-sc`); renderLevel(`${boxId}-lv`);
   // 「自分で決める」は会話タブの入力欄を使う
   box.querySelectorAll(`#${boxId}-st button`).forEach(b => b.onclick = () => { style=b.dataset.s; box.querySelectorAll(`#${boxId}-st button`).forEach(x=>x.classList.toggle("on",x===b)); });
   const gen = async (text) => {
     const btn = text ? $(`${boxId}-use`) : $(`${boxId}-gen`); btn.disabled = true; const label = btn.textContent; btn.textContent = "つくっています…";
     try {
-      const d = await api("material", { scene:sceneText(), level:S.level, count:+$(`${boxId}-n`).value, style, text:text||"" });
+      const pk = text ? { name:"", text:"" } : pickScene();
+      const d = await api("material", { scene:pk.text, level:S.level, count:+$(`${boxId}-n`).value, style, text:text||"" });
       if (!d.sentences?.length) throw new Error("英文をつくれませんでした");
-      const mat = { title: text ? (d.title || "貼りつけた英文") : `${sceneName()}（${d.title||""}）`, sentences:d.sentences };
+      const lv = LEVELS.find(l=>l.id===S.level)?.label || "";
+      const mat = { title: text ? (d.title || "貼りつけた英文") : `${pk.name}・${lv}（${d.title||""}）`, sentences:d.sentences };
       rememberMat(mat); onStart(mat);
     } catch (e) { toast(e.message, 4000); }
     btn.disabled = false; btn.textContent = label;

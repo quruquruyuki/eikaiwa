@@ -145,12 +145,19 @@ async function claude(model: string, system: string, messages: any[], tool: any,
   return { out, usd, model };
 }
 
+// レベル（画面の8段階）。古い名前も受け付ける
 const LEVEL: Record<string, string> = {
-  beginner: "The learner is a beginner (around CEFR A2). Use short, simple sentences and common words. Speak slowly and clearly.",
-  intermediate: "The learner is intermediate (around CEFR B1). Use natural but clear English; avoid rare idioms.",
-  advanced: "The learner is advanced (around CEFR B2-C1). Speak naturally as you would with a colleague.",
+  a1: "The learner is a true beginner (CEFR A1). Use only very basic words (junior high school level), very short sentences (5-8 words), present tense mostly. One idea per sentence. Speak very slowly.",
+  a2: "The learner is elementary (CEFR A2). Use basic everyday words and short, simple sentences (up to about 10 words). Avoid idioms and phrasal verbs.",
+  a2p: "The learner is pre-intermediate (CEFR A2+). Use common everyday words and short sentences; you may use simple past and future. Avoid idioms.",
+  b1: "The learner is intermediate (CEFR B1). Use natural but clear English; avoid rare idioms and slang.",
+  b1p: "The learner is intermediate-plus (CEFR B1+). Use natural English with some longer sentences and common phrasal verbs.",
+  b2: "The learner is upper-intermediate (CEFR B2). Speak naturally as you would with a colleague, including common idioms and work vocabulary.",
+  c1: "The learner is advanced (CEFR C1). Speak at natural speed with idioms, nuance, and varied sentence structures.",
+  c2: "The learner is near-native (CEFR C2). Speak exactly as you would with another native speaker, including slang, humor, and fast, complex sentences.",
 };
-const levelOf = (l: string) => LEVEL[l] ?? LEVEL.intermediate;
+const OLD_LEVEL: Record<string, string> = { starter: "a1", beginner: "a2", intermediate: "b1", upper: "b2", advanced: "c1" };
+const levelOf = (l: string) => LEVEL[l] ?? LEVEL[OLD_LEVEL[l]] ?? LEVEL.b1;
 
 // 会話の履歴をClaudeの形に（先頭は必ずユーザー）
 function toMessages(history: { role: string; text: string }[]) {
@@ -180,7 +187,7 @@ const CHAT_TOOL = {
   },
 };
 async function chat(b: any) {
-  const { scene = "Casual small talk", level = "intermediate", history = [] } = b;
+  const { scene = "Casual small talk", level = "b1", history = [] } = b;
   const system = `You are an English conversation partner for a Japanese learner. Stay in role for this scene:
 ${scene}
 ${levelOf(level)}
@@ -208,7 +215,7 @@ const HINT_TOOL = {
   },
 };
 async function hint(b: any) {
-  const { scene = "", level = "intermediate", history = [], want = "" } = b;
+  const { scene = "", level = "b1", history = [], want = "" } = b;
   const log = history.map((m: any) => `${m.role === "ai" ? "Partner" : "Learner"}: ${m.text}`).join("\n");
   const system = `You help a Japanese learner of English who is stuck in a role-play conversation. Scene: ${scene}\n${levelOf(level)}`;
   const content = `Conversation so far:\n${log || "(none)"}\n\n${want ? `The learner wants to say (in Japanese): ${want}\n` : ""}Give a hint for the learner's next reply.`;
@@ -254,7 +261,7 @@ const REVIEW_TOOL = {
   },
 };
 async function review(b: any) {
-  const { scene = "", level = "intermediate", history = [] } = b;
+  const { scene = "", level = "b1", history = [] } = b;
   const log = history.map((m: any) => `${m.role === "ai" ? "Partner" : "Learner"}: ${m.text}`).join("\n");
   if (!history.some((m: any) => m.role !== "ai" && m.text?.trim())) throw new Error("まだ話していません");
   const system = `あなたは日本人の英語学習者を教える、優しく的確な英会話コーチです。場面: ${scene}\n${levelOf(level)}
@@ -285,7 +292,7 @@ const MATERIAL_TOOL = {
   },
 };
 async function material(b: any) {
-  const { scene = "Casual small talk", level = "intermediate", count = 6, text = "", style = "dialogue" } = b;
+  const { scene = "Casual small talk", level = "b1", count = 6, text = "", style = "dialogue" } = b;
   const n = Math.min(12, Math.max(3, Number(count) || 6));
   let content: string;
   if (text.trim()) {
