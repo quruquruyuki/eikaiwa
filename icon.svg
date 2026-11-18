@@ -1,13 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <rect width="512" height="512" rx="112" fill="#37352f"/>
-  <!-- 地球（緯線・経線のシンプルな線画） -->
-  <defs><clipPath id="g"><circle cx="210" cy="300" r="130"/></clipPath></defs>
-  <g fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round">
-    <g clip-path="url(#g)"><ellipse cx="210" cy="300" rx="58" ry="130"/><path d="M60 240h300M60 360h300M60 300h300"/></g>
-    <circle cx="210" cy="300" r="130"/>
+  <!-- 地球（緯線・経線のシンプルな線画）左下に小さめ -->
+  <defs><clipPath id="g"><circle cx="178" cy="348" r="112"/></clipPath></defs>
+  <g fill="none" stroke="#fff" stroke-width="16" stroke-linecap="round">
+    <g clip-path="url(#g)"><ellipse cx="178" cy="348" rx="50" ry="112"/><path d="M40 296h300M40 400h300M40 348h300"/></g>
+    <circle cx="178" cy="348" r="112"/>
   </g>
-  <!-- 吹き出し（地球に重ねる。後ろの線を隠すため縁取りつき） -->
-  <path d="M262 92h150a40 40 0 0 1 40 40v86a40 40 0 0 1-40 40h-58l-50 44v-44h-44a40 40 0 0 1-40-40v-86a40 40 0 0 1 40-40z"
+  <!-- 吹き出し：Hello World（等幅フォントでプログラミングらしく） -->
+  <path d="M188 70h236a38 38 0 0 1 38 38v120a38 38 0 0 1-38 38h-150l-56 46v-46h-30a38 38 0 0 1-38-38v-120a38 38 0 0 1 38-38z"
         fill="#fff" stroke="#37352f" stroke-width="22" paint-order="stroke"/>
-  <text x="337" y="210" font-family="Helvetica,Arial,sans-serif" font-size="96" font-weight="700" fill="#37352f" text-anchor="middle">En</text>
+  <g font-family="DejaVu Sans Mono, Menlo, Courier New, monospace" font-weight="700" fill="#37352f" font-size="62">
+    <text x="182" y="153">Hello</text>
+    <text x="182" y="223">World</text>
+  </g>
+  <rect x="374" y="176" width="34" height="52" fill="#37352f"/>
 </svg>
